@@ -14,21 +14,30 @@ body{margin:0;background:var(--void);color:var(--paper);font-family:var(--body);
 canvas{display:block}
 #stage{position:fixed;inset:0}
 
-/* ---- HUD: дрібний, моноширинний, не заважає дивитись ---- */
-#hud{position:fixed;top:0;left:0;right:0;padding:14px 18px;pointer-events:none;z-index:4;
-  display:flex;justify-content:space-between;align-items:center;gap:14px;
-  font-family:var(--mono);font-size:.76rem;letter-spacing:.08em}
-#lives{font-size:.95rem;letter-spacing:.14rem}
-#dewBox{color:var(--neon)}
-#dewBox b{font-weight:600;font-size:.9rem}
-#zone{color:rgba(238,241,248,.5);text-transform:uppercase}
+/* ---- HUD: один моноширинний рядок ліворуч угорі ---- */
+#hud{position:fixed;top:16px;left:18px;pointer-events:none;z-index:4;
+  font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;
+  text-transform:uppercase;color:rgba(238,241,248,.82)}
+#hudRow{display:flex;align-items:center;gap:.55rem;white-space:nowrap}
+#hudRow .sep{opacity:.3}
+#dew{color:var(--neon);font-weight:600}
+#shields{color:var(--neon);letter-spacing:.22em}
+#shields .off{color:rgba(238,241,248,.22)}
+#boostWord{transition:color .2s}
+#boostWord.hot{color:var(--gold)}
+#boostWord.empty{color:rgba(238,241,248,.28)}
+/* жовта смуга заряду прискорення */
+#boostBar{margin-top:7px;width:148px;height:4px;background:rgba(238,241,248,.15)}
+#boostFill{height:100%;width:100%;background:var(--gold);transition:background .2s}
+#boostFill.low{background:var(--red)}
+#zone{margin-top:9px;font-size:.68rem;color:rgba(238,241,248,.42);letter-spacing:.14em}
 
-/* тонка смуга шляху */
-#track{position:fixed;left:18px;right:18px;top:44px;height:2px;z-index:4;
-  background:rgba(238,241,248,.13)}
+/* шлях до Копи — тонка лінія внизу */
+#track{position:fixed;left:18px;right:18px;bottom:34px;height:2px;z-index:4;
+  background:rgba(238,241,248,.11)}
 #trackFill{height:100%;width:0%;background:linear-gradient(90deg,var(--neon),var(--rose));
   transition:width .18s linear}
-#trackDot{position:absolute;top:-8px;font-size:12px;transform:translateX(-50%);
+#trackDot{position:absolute;top:-9px;font-size:11px;transform:translateX(-50%);
   transition:left .18s linear;left:0}
 
 /* рядок керування знизу — як у старих аркадах */
@@ -83,12 +92,16 @@ button.rose{background:var(--rose);box-shadow:0 4px 0 #B93A78}
 <div id="flash"></div>
 
 <div id="hud">
-  <div id="lives">💚💚💚</div>
+  <div id="hudRow">
+    <span>роса <b id="dew">0</b></span><span class="sep">·</span>
+    <span>щити <span id="shields">◆◆◆</span></span><span class="sep">·</span>
+    <span id="boostWord">прискорення</span>
+  </div>
+  <div id="boostBar"><div id="boostFill"></div></div>
   <div id="zone">Орбіта</div>
-  <div id="dewBox"><b id="dew">0</b> РОСИ</div>
 </div>
 <div id="track"><div id="trackFill"></div><div id="trackDot">🚀</div></div>
-<div id="ctrl">↑ ↓ або миша — вести · пробіл — прискорення · до Копи ще далеко</div>
+<div id="ctrl">↑ ↓ або миша — вести · пробіл — прискорення</div>
 <div id="toast"></div>
 
 <div class="sheet" id="intro">
@@ -97,13 +110,14 @@ button.rose{background:var(--rose);box-shadow:0 4px 0 #B93A78}
     <p>Копа полетіла на далеку рожеву планету й не повернулася. Жабік зібрав ракету
       з бляшанки, старого шолома й дуже великого бажання — і стартував.</p>
     <p>Між ним і Копою — <b>сміття цілої галактики</b>. Ухиляйся, збирай зоряну росу.
-      Кожні 20 крапель — одне зайве серце.</p>
+      Кожні 20 крапель — один зайвий щит.</p>
     <div class="keys">
       <span>↑ ↓ ← → вести</span><span>або миша</span>
       <span>пробіл — прискорення</span><span>палець — на телефоні</span>
     </div>
-    <p class="small">Три серця. Якщо всі згаснуть — Жабік перезбереться на початку зони
-      й полетить знову. Загубитися назавжди тут неможливо.</p>
+    <p class="small">Три щити. Прискорення витрачає паливо й саме відновлюється.
+      Якщо всі щити зіб'ють — Жабік перезбереться на початку зони й полетить знову.
+      Загубитися назавжди тут неможливо.</p>
     <button id="go">Старт 🚀</button>
   </div>
 </div>
@@ -320,16 +334,33 @@ kopa.scale.setScalar(2.6); kopa.visible = false; scene.add(kopa);
 "use strict";
 /* ================= ЗОНИ ================= */
 var ZONES = [
-  {at:0,    name:'Орбіта',           sub:'перше коло навколо дому',        light:0x94A6D8, kinds:['sat','panel','can','rock'], gap:30, speed:26},
-  {at:1700, name:'Пояс уламків',     sub:'тут ламалися всі, хто поспішав', light:0xFFC49A, kinds:['rock','rock','rock','can'], gap:23, speed:32},
+  {at:0,    name:'Орбіта',           sub:'перше коло навколо дому',        light:0x94A6D8, kinds:['sat','panel','can','rock','ice'], gap:30, speed:26},
+  {at:1700, name:'Пояс уламків',     sub:'тут ламалися всі, хто поспішав', light:0xFFC49A, kinds:['rock','rock','ice','can'], gap:23, speed:32},
   {at:3700, name:'Туманність Ряски', sub:'найгарніше місце по дорозі',     light:0xD9A6FF, kinds:['ice','rock','sat'],         gap:20, speed:37},
   {at:5700, name:'Підліт до Копи',   sub:'уже видно',                      light:0xFFB0D8, kinds:['ice','rock'],               gap:27, speed:41}
 ];
 var GOAL = 7400;
 
 /* ================= СМІТТЯ ================= */
+function crumple(geo, seed, amt){
+  var pos = geo.attributes.position, v = new THREE.Vector3();
+  for (var i=0;i<pos.count;i++){
+    v.fromBufferAttribute(pos, i);
+    /* детермінований шум від позиції — спільні вершини зсуваються однаково,
+       тому меш не розривається */
+    var n = 1 + (Math.sin(v.x*3.1+seed) + Math.cos(v.y*2.7+seed*1.7)
+              + Math.sin(v.z*3.9+seed*2.3)) * amt;
+    v.multiplyScalar(n); pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals(); return geo;
+}
+var ROCKS = [], ICES = [];
+for (var ri=0; ri<5; ri++){
+  ROCKS.push(crumple(new THREE.IcosahedronGeometry(1,1), ri*2.1, .085));
+  ICES.push(crumple(new THREE.IcosahedronGeometry(1,1), 7+ri*1.6, .105));
+}
 var G = {
-  rock: new THREE.IcosahedronGeometry(1,0),
+  rock: ROCKS[0],
   ice:  new THREE.OctahedronGeometry(1,0),
   can:  new THREE.CylinderGeometry(.6,.6,1.7,12),
   box:  new THREE.BoxGeometry(1,1,1),
@@ -350,13 +381,15 @@ function makeDebris(kind, x, y, z){
   var g = new THREE.Group(), r;
   if (kind === 'rock'){
     r = 1.1 + Math.random()*1.9;
-    var m = new THREE.Mesh(G.rock, [DM.r1,DM.r2,DM.r3][(Math.random()*3)|0]);
+    var m = new THREE.Mesh(ROCKS[(Math.random()*ROCKS.length)|0], [DM.r1,DM.r2,DM.r3][(Math.random()*3)|0]);
     m.scale.set(r, r*(.72+Math.random()*.5), r*(.8+Math.random()*.4));
     m.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
     g.add(m);
   } else if (kind === 'ice'){
     r = 1.0 + Math.random()*1.3;
-    var m2 = new THREE.Mesh(G.ice, DM.ice); m2.scale.setScalar(r); g.add(m2);
+    var m2 = new THREE.Mesh(ICES[(Math.random()*ICES.length)|0], DM.ice);
+    m2.scale.set(r, r*(.8+Math.random()*.4), r); 
+    m2.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6); g.add(m2);
   } else if (kind === 'can'){
     r = 1.0;
     var m3 = new THREE.Mesh(G.can, DM.met); m3.rotation.z = 1.0; g.add(m3);
@@ -428,9 +461,11 @@ layout();
 
 /* ================= СТАН ================= */
 var ST = {dist:0, speed:26, lives:3, maxLives:5, dew:0, hits:0, zone:-1, inv:0,
-          playing:false, ending:false, endT:0, nextObs:60, nextDew:40, boost:0};
+          playing:false, ending:false, endT:0, nextObs:60, nextDew:40, boost:0,
+          fuel:100};
 var aim = {x:L.shipX, y:0}, sx = L.shipX, sy = 0;
-var el = {lives:document.getElementById('lives'), dew:document.getElementById('dew'),
+var el = {shields:document.getElementById('shields'), dew:document.getElementById('dew'),
+  boostWord:document.getElementById('boostWord'), boostFill:document.getElementById('boostFill'),
   fill:document.getElementById('trackFill'), dot:document.getElementById('trackDot'),
   zone:document.getElementById('zone'), toast:document.getElementById('toast'),
   flash:document.getElementById('flash'), win:document.getElementById('win'),
@@ -439,9 +474,10 @@ var toastT = 0;
 function toast(a,b){ el.toast.innerHTML = a + (b?'<small>'+b+'</small>':'');
   el.toast.classList.add('on'); toastT = 2.5; }
 function drawLives(){
-  var s = ''; for (var i=0;i<ST.lives;i++) s += '💚';
-  for (var j=ST.lives;j<3;j++) s += '🖤';
-  el.lives.textContent = s;
+  var on = '', off = '';
+  for (var i=0;i<ST.lives;i++) on += '◆';
+  for (var j=ST.lives;j<3;j++) off += '◆';
+  el.shields.innerHTML = on + (off ? '<span class="off">'+off+'</span>' : '');
 }
 
 /* ================= ЗВУК ================= */
@@ -558,7 +594,7 @@ function respawn(){
 function addDew(){
   ST.dew++; el.dew.textContent = ST.dew; sDew(ST.dew);
   if (ST.dew % 20 === 0 && ST.lives < ST.maxLives){
-    ST.lives++; drawLives(); sLife(); toast('+1 серце', 'двадцять крапель роси');
+    ST.lives++; drawLives(); sLife(); toast('+1 щит', 'двадцять крапель роси');
   }
 }
 
@@ -569,9 +605,16 @@ function frame(){
   var dt = Math.min(clock.getDelta(), .045), t = clock.elapsedTime;
   var zn = ZONES[ST.zone < 0 ? 0 : ST.zone];
 
-  /* boost */
-  var wantBoost = ST.playing && !ST.ending && (keys['Space'] || ST.boost > 0);
+  /* прискорення — обмежений ресурс */
+  var held = ST.playing && !ST.ending && (keys['Space'] || ST.boost > 0);
+  var wantBoost = held && ST.fuel > 1;
+  if (wantBoost) ST.fuel = Math.max(0, ST.fuel - 34*dt);
+  else if (ST.playing) ST.fuel = Math.min(100, ST.fuel + 15*dt);
   var mul = wantBoost ? 1.55 : 1;
+  el.boostFill.style.width = ST.fuel.toFixed(1) + '%';
+  var low = ST.fuel < 22;
+  if (low !== el.boostFill.classList.contains('low')) el.boostFill.classList.toggle('low', low);
+  el.boostWord.className = wantBoost ? 'hot' : (ST.fuel < 6 ? 'empty' : '');
 
   if (ST.playing && !ST.ending){
     ST.speed += (zn.speed - ST.speed) * Math.min(1, dt*.7);
@@ -723,11 +766,12 @@ function reset(){
   clearField();
   ST.dist = 0; ST.speed = 26; ST.lives = 3; ST.dew = 0; ST.hits = 0;
   ST.zone = -1; ST.inv = 0; ST.ending = false; ST.endT = 0;
-  ST.nextObs = 70; ST.nextDew = 45; ST.boost = 0;
+  ST.nextObs = 70; ST.nextDew = 45; ST.boost = 0; ST.fuel = 100;
   aim.x = L.shipX; aim.y = 0; sx = L.shipX; sy = 0;
   kopa.visible = false; kopaPlanet.position.x = 900;
   el.dew.textContent = '0'; drawLives();
   el.fill.style.width = '0%'; el.dot.style.left = '0%';
+  el.boostFill.style.width = '100%';
   el.ctrl.textContent = '↑ ↓ або миша — вести · пробіл — прискорення';
   checkZone();
 }
