@@ -1,0 +1,741 @@
+<title>Жабік у космосі</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap">
+<style>
+:root{
+  --ink:#0B0A1F; --paper:#F7F4EC; --neon:#5CE1E6; --rose:#FF6FB5;
+  --gold:#FFD24A; --violet:#9B6BFF; --green:#5BE07A;
+  --display:"Unbounded","Trebuchet MS",sans-serif;
+  --body:"Literata",Georgia,serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#05041A;color:var(--paper);font-family:var(--body);
+  overflow:hidden;overscroll-behavior:none;touch-action:none}
+canvas{display:block}
+#stage{position:fixed;inset:0}
+
+/* ---- HUD ---- */
+#hud{position:fixed;top:0;left:0;right:0;padding:12px 16px;pointer-events:none;
+  display:flex;flex-direction:column;gap:9px;z-index:4}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.chip{background:rgba(11,10,31,.62);border:2px solid rgba(92,225,230,.35);
+  border-radius:999px;padding:.34rem .85rem;font-family:var(--display);
+  font-weight:700;font-size:.9rem;display:flex;align-items:center;gap:.45rem;
+  backdrop-filter:blur(4px)}
+#lives{letter-spacing:.16rem;font-size:1.05rem}
+#dew{color:var(--neon)}
+#zone{font-family:var(--display);font-weight:500;font-size:.74rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--neon);opacity:.85}
+/* смуга шляху */
+#track{height:9px;border-radius:999px;background:rgba(247,244,236,.14);
+  overflow:hidden;position:relative;border:1px solid rgba(247,244,236,.18)}
+#trackFill{height:100%;width:0%;border-radius:999px;
+  background:linear-gradient(90deg,var(--neon),var(--violet),var(--rose));
+  transition:width .18s linear}
+#trackDot{position:absolute;top:-6px;font-size:15px;transform:translateX(-50%);
+  transition:left .18s linear;left:0}
+
+/* тост зони */
+#toast{position:fixed;top:38%;left:50%;transform:translate(-50%,-8px);z-index:5;
+  font-family:var(--display);font-weight:900;font-size:clamp(1.4rem,6vw,2.6rem);
+  color:var(--paper);text-shadow:0 0 22px rgba(92,225,230,.75);opacity:0;
+  transition:opacity .5s,transform .5s;pointer-events:none;text-align:center;
+  letter-spacing:-.01em;width:92vw}
+#toast small{display:block;font-size:.4em;font-weight:500;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--neon);margin-top:.5rem}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* спалах удару */
+#flash{position:fixed;inset:0;background:rgba(255,80,120,.4);opacity:0;
+  pointer-events:none;transition:opacity .25s;z-index:3}
+#flash.on{opacity:1;transition:opacity .04s}
+
+/* ---- оверлеї ---- */
+.sheet{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:22px;z-index:10;background:rgba(5,4,26,.82);backdrop-filter:blur(5px)}
+.sheet.hide{display:none}
+.card{background:linear-gradient(160deg,#151238,#0C0B26);border:2px solid rgba(92,225,230,.3);
+  border-radius:22px;padding:1.9rem 1.7rem;max-width:35rem;width:100%;text-align:center;
+  box-shadow:0 0 60px rgba(92,225,230,.16);max-height:90vh;overflow-y:auto}
+.card h1{font-family:var(--display);font-weight:900;margin:0 0 .7rem;
+  font-size:clamp(1.5rem,5.6vw,2.3rem);line-height:1.06;text-wrap:balance}
+.card h1 em{font-style:normal;color:var(--rose)}
+.card h1 b{color:var(--neon);font-weight:900}
+.card p{margin:0 0 .85rem;line-height:1.6;font-size:1rem;color:#E6E2F5}
+.card p.small{font-size:.86rem;opacity:.66;line-height:1.5}
+.keys{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin:1.1rem 0 1.2rem}
+.keys span{font-family:var(--display);font-size:.7rem;font-weight:500;
+  border:2px solid rgba(92,225,230,.3);border-radius:8px;padding:.3rem .6rem;color:var(--neon)}
+button{font-family:var(--display);font-weight:700;font-size:1rem;color:#0B0A1F;
+  background:var(--neon);border:0;border-radius:999px;padding:.78rem 2rem;cursor:pointer;
+  box-shadow:0 5px 0 #2A9CA2;transition:transform .1s,box-shadow .1s}
+button:active{transform:translateY(3px);box-shadow:0 2px 0 #2A9CA2}
+button.rose{background:var(--rose);box-shadow:0 5px 0 #B93A78}
+button.rose:active{box-shadow:0 2px 0 #B93A78}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.stats{display:flex;justify-content:center;gap:1.6rem;margin:1rem 0 1.2rem;
+  font-family:var(--display);font-weight:700}
+.stats div{font-size:1.5rem;color:var(--neon)}
+.stats span{display:block;font-family:var(--body);font-weight:400;font-size:.72rem;
+  letter-spacing:.1em;text-transform:uppercase;opacity:.6;margin-top:.25rem;color:#E6E2F5}
+.sig{font-family:var(--display);font-size:.74rem;letter-spacing:.11em;
+  text-transform:uppercase;opacity:.5;margin-top:1.1rem}
+</style>
+
+<div id="stage"></div>
+<div id="flash"></div>
+
+<div id="hud">
+  <div class="row">
+    <div class="chip" id="lives">💚💚💚</div>
+    <div class="chip"><span id="dew">0</span> <small>зоряної роси</small></div>
+  </div>
+  <div id="track"><div id="trackFill"></div><div id="trackDot">🚀</div></div>
+  <div class="row"><div id="zone">Стартовий майданчик</div>
+    <div id="zone2" style="font-family:var(--display);font-size:.74rem;opacity:.55">до Копи</div></div>
+</div>
+
+<div id="toast"></div>
+
+<div class="sheet" id="intro">
+  <div class="card">
+    <h1>Жабік у <em>космосі</em></h1>
+    <p>Копа полетіла на далеку рожеву планету й не повернулася. Жабік зібрав
+      ракету з бляшанки, старого шолома й дуже великого бажання — і стартував.</p>
+    <p>Між ним і Копою — <b>сміття цілої галактики</b>: мертві супутники, уламки,
+      крижані брили й пояс астероїдів. Ухиляйся. Збирай зоряну росу.
+      Кожні 20 крапель — одне зайве серце.</p>
+    <div class="keys">
+      <span>МИША — вести ракету</span><span>WASD / стрілки</span>
+      <span>ПАЛЕЦЬ — на телефоні</span>
+    </div>
+    <p class="small">Три серця. Якщо всі згаснуть — Жабік просто перезбереться
+      на початку зони й полетить знову. Загубитися назавжди тут неможливо.</p>
+    <button id="go">Старт 🚀</button>
+  </div>
+</div>
+
+<div class="sheet hide" id="win">
+  <div class="card">
+    <h1>З Днем народження, <em>Копо</em>!</h1>
+    <div class="stats">
+      <div id="wDew">0<span>роси зібрано</span></div>
+      <div id="wKm">0<span>тисяч км</span></div>
+      <div id="wHit">0<span>влучань витримав</span></div>
+    </div>
+    <p>Жабік пролетів крізь усе сміття галактики, бо на тому боці була ти.
+      Виявилося, що це достатня причина, щоб зібрати ракету з бляшанки.</p>
+    <p>Хай цей твій рік буде такий, як цей політ: яскравий, швидкий,
+      з великою кількістю світла — і без жодного уламка, який ти не змогла б обійти.</p>
+    <p class="small">А якщо все ж влучить — я поруч, у сусідньому кріслі.</p>
+    <button class="rose" id="again">Полетіти ще раз</button>
+    <div class="sig">зроблено для тебе 🩷</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ================= СЦЕНА ================= */
+var W = innerWidth, H = innerHeight;
+var renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(W, H);
+document.getElementById('stage').appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0A0826, 0.0034);
+var camera = new THREE.PerspectiveCamera(64, W/H, 0.1, 900);
+camera.position.set(0, 5.2, 12);
+
+var ambient = new THREE.AmbientLight(0x8899FF, 1.15); scene.add(ambient);
+var key = new THREE.DirectionalLight(0xFFFFFF, 1.7); key.position.set(6, 9, 12); scene.add(key);
+var fill = new THREE.DirectionalLight(0xFFC9E8, .55); fill.position.set(-8, -4, 6); scene.add(fill);
+var rim = new THREE.PointLight(0x5CE1E6, 1.5, 46); rim.position.set(-8, 2, -14); scene.add(rim);
+
+/* ---------- зорі ---------- */
+var STAR_N = 1400, starPos = new Float32Array(STAR_N*3), starCol = new Float32Array(STAR_N*3);
+var starTint = [[1,1,1],[.62,.88,1],[1,.85,.62],[1,.66,.85],[.7,1,.85]];
+for (var i=0;i<STAR_N;i++){
+  starPos[i*3]   = (Math.random()-.5)*260;
+  starPos[i*3+1] = (Math.random()-.5)*150;
+  starPos[i*3+2] = -Math.random()*620;
+  var c = starTint[(Math.random()*starTint.length)|0];
+  starCol[i*3]=c[0]; starCol[i*3+1]=c[1]; starCol[i*3+2]=c[2];
+}
+var starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starCol,3));
+var dotTex = (function(){
+  var c = document.createElement('canvas'); c.width = c.height = 64;
+  var x = c.getContext('2d');
+  var g = x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.4,'rgba(255,255,255,.55)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(32,32,32,0,6.283); x.fill();
+  return new THREE.CanvasTexture(c);
+})();
+var stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+  size:1.9, vertexColors:true, sizeAttenuation:true, map:dotTex,
+  transparent:true, opacity:.95, depthWrite:false, blending:THREE.AdditiveBlending}));
+scene.add(stars);
+
+/* ---------- туманності (кольорові плями) ---------- */
+function glowTexture(hex){
+  var c = document.createElement('canvas'); c.width = c.height = 128;
+  var x = c.getContext('2d');
+  var g = x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0, hex + 'F2'); g.addColorStop(.35, hex + '70');
+  g.addColorStop(1, hex + '00');
+  x.fillStyle = g; x.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+var nebTex = ['#5CE1E6','#9B6BFF','#FF6FB5','#FFD24A','#5BE07A'].map(glowTexture);
+var nebulas = [];
+for (var n=0;n<26;n++){
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:nebTex[n % nebTex.length], transparent:true, opacity:.32,
+    depthWrite:false, blending:THREE.AdditiveBlending}));
+  var sc = 26 + Math.random()*54;
+  sp.scale.set(sc, sc, 1);
+  sp.position.set((Math.random()-.5)*150, (Math.random()-.5)*90, -Math.random()*600 - 40);
+  scene.add(sp); nebulas.push(sp);
+}
+
+/* ---------- далекі планети ---------- */
+var planets = [];
+function bgPlanet(x, y, z, r, col, ring){
+  var g = new THREE.Group();
+  var m = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20),
+    new THREE.MeshStandardMaterial({color:col, roughness:.85, emissive:col, emissiveIntensity:.18}));
+  g.add(m);
+  if (ring){
+    var rg = new THREE.Mesh(new THREE.RingGeometry(r*1.35, r*2.1, 44),
+      new THREE.MeshBasicMaterial({color:ring, side:THREE.DoubleSide,
+        transparent:true, opacity:.55}));
+    rg.rotation.set(-1.1, .3, .2); g.add(rg);
+  }
+  g.position.set(x, y, z); scene.add(g); planets.push(g); return g;
+}
+bgPlanet(-46, 16, -300, 15, 0x4A7BD6, 0x8FC4FF);
+bgPlanet(52, -20, -420, 22, 0xE0763F, 0xFFC48A);
+bgPlanet(-64, -26, -540, 18, 0x7A5BD8, null);
+bgPlanet(38, 26, -620, 12, 0x3FC29A, null);
+
+/* ---------- планета Копи (фініш) ---------- */
+var kopaPlanet = new THREE.Group();
+var kopaBall = new THREE.Mesh(new THREE.SphereGeometry(30, 40, 28),
+  new THREE.MeshStandardMaterial({color:0xFF7FBB, roughness:.7,
+    emissive:0xFF4E9E, emissiveIntensity:.3}));
+kopaPlanet.add(kopaBall);
+var kopaRing = new THREE.Mesh(new THREE.RingGeometry(40, 58, 60),
+  new THREE.MeshBasicMaterial({color:0xFFD24A, side:THREE.DoubleSide,
+    transparent:true, opacity:.6}));
+kopaRing.rotation.set(-1.15, .18, .35); kopaPlanet.add(kopaRing);
+var kopaGlow = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture('#FF6FB5'),
+  transparent:true, opacity:.55, depthWrite:false, blending:THREE.AdditiveBlending}));
+kopaGlow.scale.set(150,150,1); kopaPlanet.add(kopaGlow);
+kopaPlanet.position.set(0, 0, -1400); scene.add(kopaPlanet);
+
+/* ================= ЖАБІК І РАКЕТА ================= */
+var MAT = {
+  hull:  new THREE.MeshStandardMaterial({color:0xF7F4EC, roughness:.42, metalness:.35}),
+  nose:  new THREE.MeshStandardMaterial({color:0xFF5A5A, roughness:.4, metalness:.2}),
+  fin:   new THREE.MeshStandardMaterial({color:0x5CE1E6, roughness:.35, metalness:.4,
+           emissive:0x1E7C82, emissiveIntensity:.5}),
+  glass: new THREE.MeshStandardMaterial({color:0xBFF3FF, transparent:true, opacity:.42,
+           roughness:.05, metalness:.1}),
+  skin:  new THREE.MeshStandardMaterial({color:0x63B35A, roughness:.6}),
+  belly: new THREE.MeshStandardMaterial({color:0xF2762A, roughness:.55}),
+  eye:   new THREE.MeshStandardMaterial({color:0xFFFDF2, roughness:.3}),
+  pupil: new THREE.MeshStandardMaterial({color:0x14231D, roughness:.3}),
+  rose:  new THREE.MeshStandardMaterial({color:0xFF7FBB, roughness:.6}),
+  petal: new THREE.MeshStandardMaterial({color:0xFFF0F5, roughness:.7}),
+  yolk:  new THREE.MeshStandardMaterial({color:0xFFD24A, roughness:.6})
+};
+
+function tinyFrog(skinMat, bellyMat, isKopa){
+  var g = new THREE.Group();
+  var b = new THREE.Mesh(new THREE.SphereGeometry(.34, 18, 14), skinMat);
+  b.scale.set(1,.86,1.05); g.add(b);
+  var bl = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 10), bellyMat);
+  bl.scale.set(.95,.62,1.02); bl.position.set(0,-.09,.05); g.add(bl);
+  [-1,1].forEach(function(s){
+    var e = new THREE.Mesh(new THREE.SphereGeometry(.14,14,10), MAT.eye);
+    e.position.set(.16*s, .24, .13); g.add(e);
+    var p = new THREE.Mesh(new THREE.SphereGeometry(.07,10,8), MAT.pupil);
+    p.position.set(.18*s, .25, .24); g.add(p);
+  });
+  var mo = new THREE.Mesh(new THREE.TorusGeometry(.12,.02,6,12,Math.PI), MAT.pupil);
+  mo.position.set(0,-.02,.3); mo.rotation.z = Math.PI; g.add(mo);
+  if (isKopa){
+    var fl = new THREE.Group(); fl.position.set(-.14,.44,0);
+    for (var i=0;i<5;i++){
+      var pt = new THREE.Mesh(new THREE.SphereGeometry(.075,8,6), MAT.petal);
+      pt.scale.set(1,.4,1.5);
+      pt.position.set(Math.cos(i/5*6.283)*.1, 0, Math.sin(i/5*6.283)*.1);
+      fl.add(pt);
+    }
+    fl.add(new THREE.Mesh(new THREE.SphereGeometry(.045,8,6), MAT.yolk));
+    g.add(fl);
+  }
+  return g;
+}
+
+var rocket = new THREE.Group();
+(function(){
+  var body = new THREE.Mesh(new THREE.CylinderGeometry(.4,.48,3.0,20), MAT.hull);
+  body.rotation.x = Math.PI/2; rocket.add(body);
+  var nose = new THREE.Mesh(new THREE.ConeGeometry(.42,1.05,20), MAT.nose);
+  nose.rotation.x = -Math.PI/2; nose.position.z = -1.98; rocket.add(nose);
+  var ring = new THREE.Mesh(new THREE.TorusGeometry(.5,.07,8,22), MAT.fin);
+  ring.position.z = -.5; rocket.add(ring);
+  /* кабіна з Жабіком */
+  var dome = new THREE.Mesh(new THREE.SphereGeometry(.46,18,14), MAT.glass);
+  dome.position.set(0,.4,-.85); rocket.add(dome);
+  var pilot = tinyFrog(MAT.skin, MAT.belly, false);
+  pilot.scale.setScalar(.84); pilot.position.set(0,.36,-.9);
+  pilot.rotation.y = Math.PI; rocket.add(pilot);
+  rocket.userData.pilot = pilot;
+  /* плавники */
+  for (var i=0;i<3;i++){
+    var f = new THREE.Mesh(new THREE.BoxGeometry(.09,.95,.9), MAT.fin);
+    var a = i/3*6.283;
+    f.position.set(Math.cos(a)*.44, Math.sin(a)*.44, 1.22);
+    f.rotation.z = a + Math.PI/2; rocket.add(f);
+  }
+  /* полум'я */
+  var flame = new THREE.Mesh(new THREE.ConeGeometry(.34,1.3,14),
+    new THREE.MeshBasicMaterial({color:0xFFB03A, transparent:true, opacity:.72,
+      blending:THREE.AdditiveBlending, depthWrite:false}));
+  flame.rotation.x = Math.PI/2; flame.position.z = 2.1; rocket.add(flame);
+  var flame2 = new THREE.Mesh(new THREE.ConeGeometry(.19,2.0,12),
+    new THREE.MeshBasicMaterial({color:0x5CE1E6, transparent:true, opacity:.55,
+      blending:THREE.AdditiveBlending, depthWrite:false}));
+  flame2.rotation.x = Math.PI/2; flame2.position.z = 2.4; rocket.add(flame2);
+  rocket.userData.flame = flame; rocket.userData.flame2 = flame2;
+  var glow = new THREE.PointLight(0xFFA53A, 1.6, 12); glow.position.z = 2.0; rocket.add(glow);
+})();
+rocket.scale.setScalar(1.18);
+scene.add(rocket);
+
+/* Копа на фініші */
+var kopa = tinyFrog(MAT.rose, MAT.petal, true);
+kopa.scale.setScalar(2.4); kopa.visible = false; scene.add(kopa);
+</script>
+<script>
+"use strict";
+/* ================= ЗОНИ ================= */
+var ZONES = [
+  {at:0,    name:'Орбіта',            sub:'перше коло навколо дому',      fog:0x141E52, amb:0x8899FF, kinds:['sat','can','panel'], gap:26, speed:46},
+  {at:1700, name:'Пояс уламків',      sub:'тут ламалися всі, хто поспішав', fog:0x4A2712, amb:0xFFB07A, kinds:['rock','rock','can'], gap:20, speed:56},
+  {at:3700, name:'Туманність Ряски',  sub:'найгарніше місце по дорозі',   fog:0x431660, amb:0xD79BFF, kinds:['ice','rock','sat'],  gap:17, speed:64},
+  {at:5700, name:'Підліт до Копи',    sub:'уже видно',                    fog:0x5A1A44, amb:0xFFA8D2, kinds:['ice','can'],         gap:24, speed:70}
+];
+var GOAL = 7400;
+
+/* ================= СМІТТЯ ================= */
+var G = {
+  rock: new THREE.IcosahedronGeometry(1, 0),
+  ice:  new THREE.OctahedronGeometry(1, 0),
+  can:  new THREE.CylinderGeometry(.62,.62,1.7,10),
+  box:  new THREE.BoxGeometry(1,1,1),
+  panel:new THREE.BoxGeometry(2.6,.12,1.5)
+};
+var DM = {
+  rock1: new THREE.MeshStandardMaterial({color:0xC4AE97, roughness:.9, flatShading:true, emissive:0x3A2E22, emissiveIntensity:.5}),
+  rock2: new THREE.MeshStandardMaterial({color:0xE08050, roughness:.9, flatShading:true, emissive:0x4A2010, emissiveIntensity:.5}),
+  rock3: new THREE.MeshStandardMaterial({color:0x9A94B8, roughness:.9, flatShading:true, emissive:0x2A2740, emissiveIntensity:.5}),
+  ice:   new THREE.MeshStandardMaterial({color:0xA8ECFF, roughness:.2, metalness:.3,
+           emissive:0x2E93B8, emissiveIntensity:.55, flatShading:true, transparent:true, opacity:.92}),
+  metal: new THREE.MeshStandardMaterial({color:0xC9D2DC, roughness:.4, metalness:.75}),
+  hullw: new THREE.MeshStandardMaterial({color:0xE8E4F2, roughness:.5, metalness:.4}),
+  solar: new THREE.MeshStandardMaterial({color:0x2F63E0, roughness:.3, metalness:.6,
+           emissive:0x14307A, emissiveIntensity:.6})
+};
+var obstacles = [];
+function makeDebris(kind, x, y, z){
+  var g = new THREE.Group(), r;
+  if (kind === 'rock'){
+    r = 1.0 + Math.random()*1.5;
+    var m = new THREE.Mesh(G.rock, [DM.rock1,DM.rock2,DM.rock3][(Math.random()*3)|0]);
+    m.scale.set(r, r*(.7+Math.random()*.5), r); g.add(m);
+  } else if (kind === 'ice'){
+    r = .9 + Math.random()*1.2;
+    var m2 = new THREE.Mesh(G.ice, DM.ice); m2.scale.setScalar(r); g.add(m2);
+  } else if (kind === 'can'){
+    r = .95;
+    var m3 = new THREE.Mesh(G.can, DM.metal); m3.rotation.z = 1.1; g.add(m3);
+  } else if (kind === 'panel'){
+    r = 1.4;
+    var m4 = new THREE.Mesh(G.panel, DM.solar); g.add(m4);
+    var b = new THREE.Mesh(G.box, DM.hullw); b.scale.set(.5,.4,.5); g.add(b);
+  } else { /* sat */
+    r = 1.25;
+    var body = new THREE.Mesh(G.box, DM.hullw); body.scale.set(1.1,.9,1.4); g.add(body);
+    [-1,1].forEach(function(s){
+      var p = new THREE.Mesh(G.panel, DM.solar);
+      p.position.x = s*1.9; g.add(p);
+    });
+    var dish = new THREE.Mesh(new THREE.SphereGeometry(.5,12,8,0,6.28,0,1.2), DM.metal);
+    dish.rotation.x = -1.2; dish.position.set(0,.7,0); g.add(dish);
+  }
+  g.position.set(x, y, z);
+  g.userData = {r:r, pz:z, spin:new THREE.Vector3((Math.random()-.5)*1.4,(Math.random()-.5)*1.4,(Math.random()-.5)*1.4)};
+  scene.add(g); obstacles.push(g); return g;
+}
+
+/* ================= РОСА ================= */
+var dewGeo = new THREE.SphereGeometry(.3, 12, 10);
+var dewMat = new THREE.MeshBasicMaterial({color:0x9FF6FF});
+var dewTex = glowTexture('#5CE1E6');
+var dews = [];
+function makeDew(x, y, z){
+  var g = new THREE.Group();
+  g.add(new THREE.Mesh(dewGeo, dewMat));
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({map:dewTex, transparent:true,
+    opacity:.85, depthWrite:false, blending:THREE.AdditiveBlending}));
+  sp.scale.set(2.4,2.4,1); g.add(sp);
+  g.position.set(x,y,z); g.userData = {pz:z}; scene.add(g); dews.push(g); return g;
+}
+
+/* ================= СТАН ================= */
+var ST = {dist:0, speed:46, lives:3, maxLives:5, dew:0, hits:0, zone:-1,
+          inv:0, playing:false, ending:false, endT:0, nextObs:-40, nextDew:-70};
+var FIELD = {x:8.6, y:4.9};
+var aim = {x:0, y:0};
+var el = {
+  lives:document.getElementById('lives'), dew:document.getElementById('dew'),
+  fill:document.getElementById('trackFill'), dot:document.getElementById('trackDot'),
+  zone:document.getElementById('zone'), toast:document.getElementById('toast'),
+  flash:document.getElementById('flash'), win:document.getElementById('win'),
+  intro:document.getElementById('intro')
+};
+var toastT = 0;
+function toast(big, small){
+  el.toast.innerHTML = big + (small ? '<small>'+small+'</small>' : '');
+  el.toast.classList.add('on'); toastT = 2.6;
+}
+function drawLives(){
+  var s = '';
+  for (var i=0;i<ST.lives;i++) s += '💚';
+  for (var j=ST.lives;j<3;j++) s += '🖤';
+  el.lives.textContent = s;
+}
+
+/* ================= ЗВУК ================= */
+var AC = null;
+function actx(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function tone(f1,f2,dur,type,vol){
+  var a = actx(); if(!a) return;
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = type||'sine';
+  o.frequency.setValueAtTime(f1, a.currentTime);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, a.currentTime+dur);
+  g.gain.setValueAtTime(vol||.14, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0008, a.currentTime+dur);
+  o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+dur+.02);
+}
+function sDew(n){ tone(740 + (n%8)*46, 1480, .18, 'triangle', .12); }
+function sHit(){ tone(180, 60, .34, 'sawtooth', .2); }
+function sLife(){ tone(520, 1040, .5, 'sine', .16); }
+function sWin(){ [0,.16,.32,.5,.72,1.0].forEach(function(t,i){
+  setTimeout(function(){ tone([523,659,784,1047,1319,1568][i], null, .5, 'triangle', .15); }, t*1000); }); }
+
+/* ================= КЕРУВАННЯ ================= */
+var keys = {};
+addEventListener('keydown', function(e){
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].indexOf(e.code) >= 0) e.preventDefault();
+  keys[e.code] = true;
+});
+addEventListener('keyup', function(e){ keys[e.code] = false; });
+
+var cv = renderer.domElement;
+addEventListener('pointermove', function(e){
+  if (e.pointerType === 'mouse'){
+    aim.x = ((e.clientX / innerWidth) * 2 - 1) * FIELD.x;
+    aim.y = (1 - (e.clientY / innerHeight) * 2) * FIELD.y;
+  }
+});
+var tId = null, tLX = 0, tLY = 0;
+cv.addEventListener('pointerdown', function(e){
+  if (e.pointerType !== 'mouse' && tId === null){ tId = e.pointerId; tLX = e.clientX; tLY = e.clientY; }
+});
+cv.addEventListener('pointermove', function(e){
+  if (e.pointerId === tId){
+    aim.x += (e.clientX - tLX) * .034;
+    aim.y -= (e.clientY - tLY) * .034;
+    tLX = e.clientX; tLY = e.clientY;
+  }
+});
+function endT_(e){ if (e.pointerId === tId) tId = null; }
+cv.addEventListener('pointerup', endT_); cv.addEventListener('pointercancel', endT_);
+</script>
+<script>
+"use strict";
+/* ================= СПАВН ================= */
+var SPAWN_Z = -210;
+function rndX(){ return (Math.random()*2-1) * (FIELD.x - 1.2); }
+function rndY(){ return (Math.random()*2-1) * (FIELD.y - 1.0); }
+
+function spawnPattern(){
+  var zn = ZONES[ST.zone];
+  function kind(){ return zn.kinds[(Math.random()*zn.kinds.length)|0]; }
+  var p = Math.random();
+  if (p < .40){
+    makeDebris(kind(), rndX(), rndY(), SPAWN_Z);
+  } else if (p < .68){                       /* ряд з одним проходом */
+    var slots = 5, hole = (Math.random()*slots)|0;
+    for (var i=0;i<slots;i++){
+      if (i === hole || i === hole+1) continue;
+      makeDebris(kind(), -FIELD.x + 1.2 + i*(FIELD.x*2-2.4)/(slots-1), rndY()*.5, SPAWN_Z);
+    }
+  } else if (p < .86){                       /* діагональ */
+    var dir = Math.random() < .5 ? 1 : -1;
+    for (var j=0;j<4;j++)
+      makeDebris(kind(), -5.5*dir + j*3.6*dir, -3.4 + j*2.2, SPAWN_Z - j*14);
+  } else {                                    /* купа */
+    var cx = rndX()*.7, cy = rndY()*.7;
+    for (var k=0;k<4;k++)
+      makeDebris(kind(), cx + (Math.random()-.5)*4.4, cy + (Math.random()-.5)*3.4, SPAWN_Z - Math.random()*22);
+  }
+}
+function spawnDewChain(){
+  var cx = rndX()*.8, cy = rndY()*.8, n = 5 + ((Math.random()*3)|0);
+  var dx = (Math.random()-.5)*1.5, dy = (Math.random()-.5)*1.1;
+  for (var i=0;i<n;i++) makeDew(cx + dx*i, cy + dy*i, SPAWN_Z + 10 - i*7);
+}
+function clearField(){
+  obstacles.forEach(function(o){ scene.remove(o); }); obstacles.length = 0;
+  dews.forEach(function(d){ scene.remove(d); }); dews.length = 0;
+}
+
+/* ================= ЗОНИ ================= */
+var fogC = new THREE.Color(0x141E52), ambC = new THREE.Color(0x8899FF), bgC = new THREE.Color();
+var fogT = new THREE.Color(0x0A1030), ambT = new THREE.Color(0x8899FF);
+function checkZone(){
+  var idx = 0;
+  for (var i=0;i<ZONES.length;i++) if (ST.dist >= ZONES[i].at) idx = i;
+  if (idx !== ST.zone){
+    ST.zone = idx;
+    var z = ZONES[idx];
+    fogT.setHex(z.fog); ambT.setHex(z.amb);
+    el.zone.textContent = z.name;
+    toast(z.name, z.sub);
+    tone(420, 840, .45, 'sine', .13);
+  }
+}
+
+/* ================= УДАР І ЖИТТЯ ================= */
+function hit(){
+  if (ST.inv > 0) return;
+  ST.hits++; ST.lives--; ST.inv = 1.7;
+  drawLives(); sHit();
+  el.flash.classList.add('on');
+  setTimeout(function(){ el.flash.classList.remove('on'); }, 90);
+  shake = .55;
+  if (ST.lives <= 0) respawn();
+}
+function respawn(){
+  var z = ZONES[ST.zone];
+  ST.dist = z.at + 8; ST.lives = 3; ST.inv = 2.2;
+  clearField(); drawLives();
+  ST.nextObs = ST.dist + 60; ST.nextDew = ST.dist + 40;
+  toast('Ще раз!', 'жабік перезбирався на початку зони');
+}
+function addDew(){
+  ST.dew++; el.dew.textContent = ST.dew; sDew(ST.dew);
+  if (ST.dew % 20 === 0 && ST.lives < ST.maxLives){
+    ST.lives++; drawLives(); sLife();
+    toast('+1 серце', 'двадцять крапель зоряної роси');
+  }
+}
+
+/* ================= ЦИКЛ ================= */
+var clock = new THREE.Clock(), shake = 0;
+var rx = 0, ry = 0;
+
+function frame(){
+  requestAnimationFrame(frame);
+  var dt = Math.min(clock.getDelta(), .045), t = clock.elapsedTime;
+
+  if (ST.playing && !ST.ending){
+    var zn = ZONES[ST.zone < 0 ? 0 : ST.zone];
+    ST.speed += (zn.speed - ST.speed) * Math.min(1, dt*.6);
+    ST.dist += ST.speed * dt;
+    checkZone();
+    if (ST.dist >= GOAL) startEnding();
+
+    if (ST.nextObs < ST.dist - 400) ST.nextObs = ST.dist + 40;
+    if (ST.nextDew < ST.dist - 400) ST.nextDew = ST.dist + 60;
+    var guard = 0;
+    while (ST.dist > ST.nextObs && guard++ < 3){ spawnPattern(); ST.nextObs += zn.gap; }
+    while (ST.dist > ST.nextDew){ spawnDewChain(); ST.nextDew += 78; }
+
+    var pct = Math.min(100, ST.dist / GOAL * 100);
+    el.fill.style.width = pct + '%';
+    el.dot.style.left = pct + '%';
+  }
+
+  var move = ST.playing ? ST.speed * dt : 12 * dt;
+
+  /* керування з клавіатури */
+  if (ST.playing && !ST.ending){
+    var kx = 0, ky = 0;
+    if (keys['KeyA'] || keys['ArrowLeft'])  kx -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) kx += 1;
+    if (keys['KeyW'] || keys['ArrowUp'])    ky += 1;
+    if (keys['KeyS'] || keys['ArrowDown'])  ky -= 1;
+    aim.x += kx * 15 * dt; aim.y += ky * 11 * dt;
+  }
+  aim.x = Math.max(-FIELD.x, Math.min(FIELD.x, aim.x));
+  aim.y = Math.max(-FIELD.y, Math.min(FIELD.y, aim.y));
+
+  if (!ST.ending){
+    rx += (aim.x - rx) * Math.min(1, dt*7.5);
+    ry += (aim.y - ry) * Math.min(1, dt*7.5);
+    rocket.position.set(rx, ry, 0);
+    rocket.rotation.z = (rx - aim.x) * .28;
+    rocket.rotation.x = (aim.y - ry) * .16;
+    rocket.rotation.y = (aim.x - rx) * -.1;
+  }
+
+  /* сміття */
+  for (var i=obstacles.length-1;i>=0;i--){
+    var o = obstacles[i];
+    var opz = o.userData.pz;
+    o.position.z += move;
+    o.userData.pz = o.position.z;
+    o.rotation.x += o.userData.spin.x * dt;
+    o.rotation.y += o.userData.spin.y * dt;
+    o.rotation.z += o.userData.spin.z * dt;
+    if (o.position.z > 14){ scene.remove(o); obstacles.splice(i,1); continue; }
+    if (ST.playing && !ST.ending && opz < .8 && o.position.z > -.8){
+      var dx = o.position.x - rocket.position.x, dy = o.position.y - rocket.position.y;
+      if (dx*dx + dy*dy < (o.userData.r + .95)*(o.userData.r + .95)) hit();
+    }
+  }
+  /* роса */
+  for (var j=dews.length-1;j>=0;j--){
+    var d = dews[j];
+    var dpz = d.userData.pz;
+    d.position.z += move;
+    d.userData.pz = d.position.z;
+    d.children[0].rotation.y += dt*3;
+    if (d.position.z > 14){ scene.remove(d); dews.splice(j,1); continue; }
+    if (ST.playing && !ST.ending && dpz < 1.0 && d.position.z > -1.0){
+      var ex = d.position.x - rocket.position.x, ey = d.position.y - rocket.position.y;
+      if (ex*ex + ey*ey < 3.4){ scene.remove(d); dews.splice(j,1); addDew(); }
+    }
+  }
+
+  /* зорі й туманності */
+  var sp = starGeo.attributes.position.array;
+  for (var s=0;s<STAR_N;s++){
+    sp[s*3+2] += move * (.55 + (s % 5) * .18);
+    if (sp[s*3+2] > 22){ sp[s*3+2] -= 620; sp[s*3] = (Math.random()-.5)*260; sp[s*3+1] = (Math.random()-.5)*150; }
+  }
+  starGeo.attributes.position.needsUpdate = true;
+  for (var nb=0;nb<nebulas.length;nb++){
+    var nn = nebulas[nb];
+    nn.position.z += move * .42;
+    if (nn.position.z > 40){ nn.position.z -= 640;
+      nn.position.x = (Math.random()-.5)*150; nn.position.y = (Math.random()-.5)*90; }
+  }
+  for (var pl=0;pl<planets.length;pl++){
+    planets[pl].position.z += move * .1; planets[pl].rotation.y += dt*.04;
+    if (planets[pl].position.z > 90) planets[pl].position.z -= 720;
+  }
+
+  /* планета Копи росте по мірі шляху */
+  var prog = Math.min(1, ST.dist / GOAL);
+  if (!ST.ending) kopaPlanet.position.z = -1500 + prog * 1290;
+  kopaPlanet.rotation.y += dt * .06;
+  kopaRing.rotation.z += dt * .05;
+
+  /* колір зони */
+  fogC.lerp(fogT, Math.min(1, dt*.8)); ambC.lerp(ambT, Math.min(1, dt*.8));
+  bgC.copy(fogC).multiplyScalar(.32);          /* космос лишається темним */
+  scene.fog.color.copy(bgC);
+  renderer.setClearColor(bgC);
+  ambient.color.copy(ambC);                     /* колір зони — у світлі */
+  rim.color.copy(ambC);
+
+  /* полум'я */
+  var fl = rocket.userData.flame, fl2 = rocket.userData.flame2;
+  fl.scale.set(1, .8 + Math.sin(t*32)*.22, 1);
+  fl2.scale.set(1, .9 + Math.sin(t*26+1)*.3, 1);
+
+  /* невразливість */
+  if (ST.inv > 0){ ST.inv -= dt; rocket.visible = (Math.sin(t*30) > -.2); }
+  else rocket.visible = true;
+
+  /* тост */
+  if (toastT > 0){ toastT -= dt; if (toastT <= 0) el.toast.classList.remove('on'); }
+
+  /* фінал */
+  if (ST.ending) endingStep(dt, t);
+
+  /* камера */
+  if (shake > 0) shake -= dt*1.8;
+  var sh = shake > 0 ? shake : 0;
+  camera.position.x += (rocket.position.x*.35 + (Math.random()-.5)*sh*2 - camera.position.x) * Math.min(1, dt*6);
+  camera.position.y += (5.1 + rocket.position.y*.34 + (Math.random()-.5)*sh*2 - camera.position.y) * Math.min(1, dt*6);
+  camera.position.z += ((ST.ending ? 10 : 12) - camera.position.z) * Math.min(1, dt*2);
+  camera.lookAt(rocket.position.x*.5, rocket.position.y*.5 - 1.7, -22);
+
+  renderer.render(scene, camera);
+}
+
+/* ================= ФІНАЛ ================= */
+function startEnding(){
+  if (ST.ending) return;
+  ST.ending = true; ST.endT = 0;
+  clearField(); sWin();
+  toast('Планета Копи', 'долетів');
+  kopa.visible = true;
+  kopa.position.set(0, -.4, -230);
+  document.getElementById('wDew').firstChild.nodeValue = ST.dew;
+  document.getElementById('wKm').firstChild.nodeValue = Math.round(GOAL/10);
+  document.getElementById('wHit').firstChild.nodeValue = ST.hits;
+}
+function endingStep(dt, t){
+  ST.endT += dt;
+  ST.speed += (16 - ST.speed) * Math.min(1, dt*.9);
+  kopaPlanet.position.z += (-120 - kopaPlanet.position.z) * Math.min(1, dt*.5);
+  kopa.position.z += (-13 - kopa.position.z) * Math.min(1, dt*.7);
+  kopa.position.y = -.4 + Math.abs(Math.sin(t*3.2)) * .8;
+  kopa.rotation.y = Math.sin(t*1.4) * .35;
+  rx += (0 - rx) * Math.min(1, dt*1.6);
+  ry += (.2 - ry) * Math.min(1, dt*1.6);
+  rocket.position.set(rx, ry, 0);
+  rocket.rotation.z *= .93; rocket.rotation.x *= .93;
+  if (ST.endT > 3.4 && el.win.classList.contains('hide')) el.win.classList.remove('hide');
+}
+
+/* ================= СТАРТ / РЕСТАРТ ================= */
+function reset(){
+  clearField();
+  ST.dist = 0; ST.speed = 46; ST.lives = 3; ST.dew = 0; ST.hits = 0;
+  ST.zone = -1; ST.inv = 0; ST.ending = false; ST.endT = 0;
+  ST.nextObs = 60; ST.nextDew = 40;
+  aim.x = 0; aim.y = 0; rx = 0; ry = 0;
+  kopa.visible = false; kopaPlanet.position.z = -1500;
+  el.dew.textContent = '0'; drawLives();
+  el.fill.style.width = '0%'; el.dot.style.left = '0%';
+  checkZone();
+}
+document.getElementById('go').addEventListener('click', function(){
+  el.intro.classList.add('hide');
+  var a = actx(); if (a && a.state === 'suspended') a.resume();
+  reset(); ST.playing = true;
+});
+document.getElementById('again').addEventListener('click', function(){
+  el.win.classList.add('hide'); reset(); ST.playing = true;
+});
+addEventListener('resize', function(){
+  W = innerWidth; H = innerHeight;
+  camera.aspect = W/H; camera.updateProjectionMatrix(); renderer.setSize(W,H);
+});
+drawLives();
+frame();
+</script>

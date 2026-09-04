@@ -1,4 +1,4 @@
-<title>Кум шукає Куму</title>
+<title>Жабік і Копа</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap">
 <style>
 :root{
@@ -60,6 +60,15 @@ button.rose:active{box-shadow:0 2px 0 var(--rose-deep)}
 .sig{font-family:var(--display);font-size:.78rem;letter-spacing:.1em;
   text-transform:uppercase;opacity:.55;margin-top:1.2rem}
 
+/* картка історії */
+#story{position:fixed;left:50%;bottom:74px;transform:translate(-50%,14px);
+  max-width:min(38rem,92vw);background:rgba(246,243,231,.97);border-radius:14px;
+  padding:.95rem 1.2rem;font-size:.97rem;line-height:1.55;z-index:6;
+  box-shadow:0 6px 0 rgba(14,31,26,.18);border-left:5px solid var(--rose);
+  opacity:0;transition:opacity .5s,transform .5s;pointer-events:none}
+#story.on{opacity:1;transform:translate(-50%,0)}
+@media (pointer:coarse){#story{bottom:142px}}
+
 /* мобільні контролі */
 #touch{position:fixed;inset:0;z-index:5;display:none}
 #touch.on{display:block}
@@ -83,6 +92,7 @@ button.rose:active{box-shadow:0 2px 0 var(--rose-deep)}
   <div id="pads">Кожні три кристали піднімають один листок стежки</div>
 </div>
 <div id="hint"></div>
+<div id="story"></div>
 
 <div id="touch">
   <div id="stickBase"></div><div id="stickNub"></div>
@@ -91,11 +101,12 @@ button.rose:active{box-shadow:0 2px 0 var(--rose-deep)}
 
 <div class="sheet" id="intro">
   <div class="card">
-    <h1>Кум шукає <em>Куму</em></h1>
-    <p>Зелене жабеня стрибає теплим мілководдям. Десь на тому боці ставка,
-      на найбільшому лататті, сидить рожева жабка — і вона там сама.</p>
+    <h1>Жабік і <em>Копа</em></h1>
+    <p>Одного вечора Жабік почув з того боку ставка спів. Не хор — один голос,
+      тихий і трохи фальшивий на високих нотах. І вперше в житті пішов туди,
+      куди його не кликали.</p>
     <p>Збери <b>дванадцять росяних кристалів</b>. Кожні три піднімають з води
-      один листок стежки до неї. Блимка-світлячок покаже, куди летіти далі.</p>
+      один листок стежки через ставок. Блимка-світлячок покаже, куди далі.</p>
     <div class="keys">
       <span>WASD / ← →</span><span>ПРОБІЛ — стрибок</span>
       <span>ТРИМАЙ ПРОБІЛ — далі</span><span>МИША — камера</span>
@@ -110,13 +121,13 @@ button.rose:active{box-shadow:0 2px 0 var(--rose-deep)}
   <div class="card">
     <div class="hearts">🐸 💚 🩷 🐸</div>
     <h1>З Днем народження!</h1>
-    <p>Кум перестрибнув увесь ставок, зібрав дванадцять росяних кристалів
-      і знайшов ту єдину, заради якої взагалі варто було стрибати.</p>
-    <p>Хай твій рік буде теплим, як мілководдя під вечірнім сонцем,
-      і повним, як Свічадо після дощу. А я поруч — на сусідньому листку,
-      завжди в межах одного стрибка.</p>
-    <p class="small">Дванадцять кристалів — це дванадцять причин,
-      але насправді їх значно більше.</p>
+    <p>Усе життя Жабіка питали, <i>що</i> в нього світиться.
+      І тільки Копа спитала — <b>чи йому не важко це нести</b>.</p>
+    <p>Ось, власне, і вся різниця. Хай твій рік буде теплим, як мілководдя
+      під вечірнім сонцем, і повним, як ставок після дощу. А я поруч —
+      на сусідньому листку, завжди в межах одного стрибка.</p>
+    <p class="small">Дванадцять кристалів — це дванадцять причин.
+      Насправді їх значно більше.</p>
     <button class="rose" id="again">Обійняти ще раз</button>
     <div class="sig">зроблено для тебе 🩷</div>
   </div>
@@ -341,11 +352,11 @@ addCrystal(4.8, 2.6, -3.2);
 var TOTAL = CRYSTALS.length;
 
 /* ---------- жабки ---------- */
-var kum = makeFrog(M.green, M.belly, false);
-scene.add(kum);
-var kuma = makeFrog(M.rose, M.roseBelly, true);
-kuma.position.set(0, .59, -17.4); kuma.rotation.y = Math.PI; kuma.scale.setScalar(1.34);
-scene.add(kuma);
+var zhabik = makeFrog(M.green, M.belly, false);
+scene.add(zhabik);
+var kopa = makeFrog(M.rose, M.roseBelly, true);
+kopa.position.set(0, .59, -17.4); kopa.rotation.y = Math.PI; kopa.scale.setScalar(1.34);
+scene.add(kopa);
 
 /* Блимка */
 var blymka = new THREE.Group();
@@ -484,10 +495,10 @@ function nearestCrystal(){
 }
 function raisePath(){
   var n = Math.min(Math.floor(count / 3), PATH.length);
+  tellStory(n);
   for (var i=0;i<n;i++){
     if (PATH[i].hidden){
       PATH[i].hidden = false;
-      hint('З води піднявся листок стежки — до Куми ближче на один стрибок!', 3.4);
       tone(300, 620, .5, 'sine', .14);
     }
   }
@@ -518,6 +529,20 @@ function spawnHearts(){
 function lerpAngle(a, b, t){
   var d = ((b - a + Math.PI) % 6.283 + 6.283) % 6.283 - Math.PI;
   return a + d * t;
+}
+var storyEl = document.getElementById('story'), storyT = 0, storyShown = 0;
+var STORY = [
+  'Жабік просидів усю ніч з мокрими лапками й дуже прямою спиною — а вдосвіта вперше пішов туди, куди його не кликали.',
+  'Кристали він збирав спершу просто так, бо гарно дзвеніли. А ставок за кожні три піднімав із води ще один листок: далі, ще трошки, я допоможу.',
+  'Острів обнесений очеретом так тісно, що не проліз би й пуголовок. Крізь такий не пропливти — його можна тільки перестрибнути.',
+  'Стежка готова. Виявилося, що вся дорога через ставок була підготовкою до одного-єдиного стрибка.'
+];
+function tellStory(i){
+  if (i <= storyShown || i > STORY.length) return;
+  storyShown = i;
+  storyEl.textContent = STORY[i-1];
+  storyEl.classList.add('on');
+  storyT = 8.5;
 }
 var padsEl = document.getElementById('pads');
 var winEl = document.getElementById('win'), introEl = document.getElementById('intro');
@@ -569,7 +594,7 @@ function frame(){
   var tgt = nearestCrystal();
   var bx, by, bz;
   if (tgt){ bx = tgt.x; by = tgt.y; bz = tgt.z; }
-  else { bx = kuma.position.x; by = 1.8; bz = kuma.position.z; }
+  else { bx = kopa.position.x; by = 1.8; bz = kopa.position.z; }
   var ddx = bx - P.x, ddz = bz - P.z, dl = Math.hypot(ddx, ddz) || 1;
   blymka.position.x += ((P.x + ddx/dl*1.5 + Math.cos(t*2.4)*.35) - blymka.position.x) * Math.min(1, dt*3.4);
   blymka.position.y += ((P.y + 1.45 + Math.sin(t*3.1)*.18) - blymka.position.y) * Math.min(1, dt*3.4);
@@ -578,6 +603,7 @@ function frame(){
 
   /* підказка */
   if (hintT > 0){ hintT -= dt; if (hintT <= 0) hintEl.classList.remove('on'); }
+  if (storyT > 0){ storyT -= dt; if (storyT <= 0) storyEl.classList.remove('on'); }
 
   /* камера */
   var lx = P.x, ly = P.y + 1.0, lz = P.z;
@@ -627,7 +653,7 @@ function step(dt, t){
   var isIn  = (P.x-FENCE.x)*(P.x-FENCE.x) + (P.z-FENCE.z)*(P.z-FENCE.z) < FENCE.r*FENCE.r;
   if (!wasIn && isIn && P.y < FENCE.top){
     P.x = prevX; P.z = prevZ; P.vx = P.vz = 0;
-    hint('Крізь очерет не пропливти. Збирай кристали — стежка з листків перенесе тебе понад ним.', 3.6);
+    hint('Крізь очерет не пропливти — його можна тільки перестрибнути. Збирай кристали, і стежка тебе понесе.', 3.6);
   }
   /* межі ставка */
   var rad = Math.hypot(P.x, P.z);
@@ -662,24 +688,24 @@ function step(dt, t){
       raisePath();
       var done = Math.min(Math.floor(count/3), PATH.length);
       padsEl.textContent = done >= PATH.length
-        ? 'Стежка готова — стрибай до неї!'
+        ? 'Стежка готова — стрибай до Копи!'
         : 'Стежка: ' + done + ' з ' + PATH.length + ' листків';
     }
   }
 
   /* зустріч */
-  var kdx = P.x - kuma.position.x, kdz = P.z - kuma.position.z;
+  var kdx = P.x - kopa.position.x, kdz = P.z - kopa.position.z;
   if (kdx*kdx + kdz*kdz < 2.4*2.4){ startEnding(); }
 
   /* анімація жабки */
   var target = 1;
   if (charging) target = .72 - Math.min(chargeT/.55, 1) * .1;
   P.squash += (target - P.squash) * Math.min(1, dt * 9);
-  kum.position.set(P.x, P.y, P.z);
-  kum.scale.set(1.34/Math.sqrt(P.squash), 1.34*P.squash, 1.34/Math.sqrt(P.squash));
+  zhabik.position.set(P.x, P.y, P.z);
+  zhabik.scale.set(1.34/Math.sqrt(P.squash), 1.34*P.squash, 1.34/Math.sqrt(P.squash));
   if (l > .08) P.face = lerpAngle(P.face, Math.atan2(mx, mz), Math.min(1, dt*10));
-  kum.rotation.y = P.face;
-  if (P.swim) kum.position.y = .22 + Math.sin(t*3)*.05;
+  zhabik.rotation.y = P.face;
+  if (P.swim) zhabik.position.y = .22 + Math.sin(t*3)*.05;
 
   /* автовирівнювання камери */
   if (camAuto > 0) camAuto -= dt;
@@ -692,20 +718,20 @@ function startEnding(){
   ending = true; endT = 0; charging = false;
   spawnHearts(); fanfare();
   hintEl.classList.remove('on');
-  padsEl.textContent = 'Знайшов 🩷';
+  padsEl.textContent = 'Жабік і Копа 🩷';
 }
 function endingStep(dt, t){
   endT += dt;
   var e = Math.min(endT / 1.3, 1);
-  kum.position.x += (1.15 - kum.position.x) * Math.min(1, dt*2.4);
-  kum.position.z += (-17.1 - kum.position.z) * Math.min(1, dt*2.4);
-  kum.position.y = .59 + Math.abs(Math.sin(t*3.4)) * .3 * e;
-  kum.rotation.y = lerpAngle(kum.rotation.y, 0.35, Math.min(1, dt*2.5));
-  kum.scale.set(1.34,1.34,1.34);
-  kuma.position.x += (-1.15 - kuma.position.x) * Math.min(1, dt*2.4);
-  kuma.position.z += (-17.1 - kuma.position.z) * Math.min(1, dt*2.4);
-  kuma.position.y = .59 + Math.abs(Math.sin(t*3.4 + 1.6)) * .3 * e;
-  kuma.rotation.y = lerpAngle(kuma.rotation.y, -0.35, Math.min(1, dt*2.5));
+  zhabik.position.x += (1.15 - zhabik.position.x) * Math.min(1, dt*2.4);
+  zhabik.position.z += (-17.1 - zhabik.position.z) * Math.min(1, dt*2.4);
+  zhabik.position.y = .59 + Math.abs(Math.sin(t*3.4)) * .3 * e;
+  zhabik.rotation.y = lerpAngle(zhabik.rotation.y, 0.35, Math.min(1, dt*2.5));
+  zhabik.scale.set(1.34,1.34,1.34);
+  kopa.position.x += (-1.15 - kopa.position.x) * Math.min(1, dt*2.4);
+  kopa.position.z += (-17.1 - kopa.position.z) * Math.min(1, dt*2.4);
+  kopa.position.y = .59 + Math.abs(Math.sin(t*3.4 + 1.6)) * .3 * e;
+  kopa.rotation.y = lerpAngle(kopa.rotation.y, -0.35, Math.min(1, dt*2.5));
   camYaw += dt * .22;
   if (endT > 2.2 && winEl.classList.contains('hide')) winEl.classList.remove('hide');
   if (endT > 4 && hearts.length < 6) spawnHearts();
@@ -718,7 +744,7 @@ document.getElementById('go').addEventListener('click', function(){
   var a = actx(); if (a && a.state === 'suspended') a.resume();
   cntEl.textContent = '0 / ' + TOTAL;
   padsEl.textContent = 'Стежка: 0 з ' + PATH.length + ' листків';
-  hint('Збери кристали. Блимка летить туди, де найближчий.', 4);
+  hint('Блимка летить туди, де найближчий кристал. Слухай, звідки спів.', 4.5);
 });
 document.getElementById('again').addEventListener('click', function(){
   winEl.classList.add('hide');
@@ -729,6 +755,6 @@ addEventListener('resize', function(){
   camera.aspect = W/H; camera.updateProjectionMatrix();
   renderer.setSize(W, H);
 });
-kum.position.set(P.x, P.y, P.z);
+zhabik.position.set(P.x, P.y, P.z);
 frame();
 </script>
