@@ -1,0 +1,734 @@
+<title>Кум шукає Куму</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap">
+<style>
+:root{
+  --ink:#0E1F1A; --cream:#F6F3E7; --moss:#2C6B4E; --dew:#39B0C6;
+  --belly:#F2762A; --rose:#F2789F; --rose-deep:#C4436E;
+  --display:"Unbounded","Trebuchet MS",sans-serif;
+  --body:"Literata",Georgia,serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#8FD3E8;color:var(--ink);font-family:var(--body);
+  overflow:hidden;overscroll-behavior:none;touch-action:none}
+canvas{display:block}
+#stage{position:fixed;inset:0}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;padding:14px 16px;display:flex;
+  justify-content:space-between;align-items:flex-start;pointer-events:none;gap:12px}
+.tag{background:rgba(246,243,231,.9);border-radius:999px;padding:.42rem .9rem;
+  font-family:var(--display);font-weight:700;font-size:.95rem;color:var(--ink);
+  box-shadow:0 3px 0 rgba(14,31,26,.16);display:flex;align-items:center;gap:.5rem}
+.tag small{font-family:var(--body);font-weight:400;font-size:.78rem;opacity:.7}
+#pads{background:rgba(246,243,231,.9);border-radius:999px;padding:.42rem .9rem;
+  font-family:var(--body);font-size:.82rem;box-shadow:0 3px 0 rgba(14,31,26,.16);
+  max-width:52vw;text-align:right;line-height:1.35}
+
+/* нижня підказка */
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;
+  background:rgba(14,31,26,.72);color:var(--cream);border-radius:999px;
+  padding:.45rem 1rem;font-size:.84rem;pointer-events:none;opacity:0;
+  transition:opacity .35s;max-width:88vw;text-align:center}
+#hint.on{opacity:1}
+
+/* оверлеї */
+.sheet{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:24px;z-index:10;background:rgba(10,26,22,.55);backdrop-filter:blur(3px)}
+.sheet.hide{display:none}
+.card{background:var(--cream);border-radius:20px;padding:2rem 1.9rem;max-width:34rem;
+  width:100%;box-shadow:0 14px 0 rgba(14,31,26,.22);text-align:center;
+  max-height:88vh;overflow-y:auto}
+.card h1{font-family:var(--display);font-size:clamp(1.6rem,5.4vw,2.4rem);margin:0 0 .6rem;
+  line-height:1.08;text-wrap:balance}
+.card h1 em{font-style:normal;color:var(--rose-deep)}
+.card p{margin:0 0 .9rem;line-height:1.62;font-size:1.02rem}
+.card p.small{font-size:.88rem;opacity:.72;line-height:1.5}
+.keys{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin:1.1rem 0 1.3rem}
+.keys span{font-family:var(--display);font-size:.72rem;font-weight:500;
+  border:2px solid rgba(14,31,26,.18);border-radius:8px;padding:.3rem .6rem}
+button{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--cream);
+  background:var(--moss);border:0;border-radius:999px;padding:.8rem 2rem;cursor:pointer;
+  box-shadow:0 5px 0 #1C4B36;transition:transform .1s,box-shadow .1s}
+button:active{transform:translateY(3px);box-shadow:0 2px 0 #1C4B36}
+button.rose{background:var(--rose);box-shadow:0 5px 0 var(--rose-deep)}
+button.rose:active{box-shadow:0 2px 0 var(--rose-deep)}
+:focus-visible{outline:3px solid var(--belly);outline-offset:3px}
+
+/* фінальна картка */
+#win .card{border-top:6px solid var(--rose)}
+.hearts{font-size:1.6rem;letter-spacing:.3rem;margin-bottom:.6rem}
+.sig{font-family:var(--display);font-size:.78rem;letter-spacing:.1em;
+  text-transform:uppercase;opacity:.55;margin-top:1.2rem}
+
+/* мобільні контролі */
+#touch{position:fixed;inset:0;z-index:5;display:none}
+#touch.on{display:block}
+#stickBase{position:absolute;width:118px;height:118px;border-radius:50%;
+  border:3px solid rgba(246,243,231,.6);background:rgba(246,243,231,.18);
+  transform:translate(-50%,-50%);display:none;pointer-events:none}
+#stickNub{position:absolute;width:52px;height:52px;border-radius:50%;
+  background:rgba(246,243,231,.85);transform:translate(-50%,-50%);
+  display:none;pointer-events:none}
+#jumpBtn{position:absolute;right:22px;bottom:26px;width:96px;height:96px;border-radius:50%;
+  background:rgba(242,118,42,.9);border:3px solid rgba(246,243,231,.8);
+  font-family:var(--display);font-weight:700;color:#fff;font-size:.82rem;
+  box-shadow:0 5px 0 rgba(14,31,26,.3);display:flex;align-items:center;justify-content:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<div id="stage"></div>
+
+<div id="hud">
+  <div class="tag"><span id="cnt">0 / 12</span> <small>росяних кристалів</small></div>
+  <div id="pads">Кожні три кристали піднімають один листок стежки</div>
+</div>
+<div id="hint"></div>
+
+<div id="touch">
+  <div id="stickBase"></div><div id="stickNub"></div>
+  <div id="jumpBtn">СТРИБОК</div>
+</div>
+
+<div class="sheet" id="intro">
+  <div class="card">
+    <h1>Кум шукає <em>Куму</em></h1>
+    <p>Зелене жабеня стрибає теплим мілководдям. Десь на тому боці ставка,
+      на найбільшому лататті, сидить рожева жабка — і вона там сама.</p>
+    <p>Збери <b>дванадцять росяних кристалів</b>. Кожні три піднімають з води
+      один листок стежки до неї. Блимка-світлячок покаже, куди летіти далі.</p>
+    <div class="keys">
+      <span>WASD / ← →</span><span>ПРОБІЛ — стрибок</span>
+      <span>ТРИМАЙ ПРОБІЛ — далі</span><span>МИША — камера</span>
+    </div>
+    <p class="small">На телефоні: тримай палець ліворуч — це джойстик, кнопка праворуч — стрибок.
+      У воді не тонуть — там просто плавають.</p>
+    <button id="go">Стрибаймо!</button>
+  </div>
+</div>
+
+<div class="sheet hide" id="win">
+  <div class="card">
+    <div class="hearts">🐸 💚 🩷 🐸</div>
+    <h1>З Днем народження!</h1>
+    <p>Кум перестрибнув увесь ставок, зібрав дванадцять росяних кристалів
+      і знайшов ту єдину, заради якої взагалі варто було стрибати.</p>
+    <p>Хай твій рік буде теплим, як мілководдя під вечірнім сонцем,
+      і повним, як Свічадо після дощу. А я поруч — на сусідньому листку,
+      завжди в межах одного стрибка.</p>
+    <p class="small">Дванадцять кристалів — це дванадцять причин,
+      але насправді їх значно більше.</p>
+    <button class="rose" id="again">Обійняти ще раз</button>
+    <div class="sig">зроблено для тебе 🩷</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ---------- базова сцена ---------- */
+var W = innerWidth, H = innerHeight;
+var renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('stage').appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xA8DEEC, 34, 74);
+
+/* небо-градієнт */
+(function(){
+  var c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  var g = c.getContext('2d').createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#5FB8DC'); g.addColorStop(.55,'#9FDCEA'); g.addColorStop(1,'#DCEFC9');
+  var x = c.getContext('2d'); x.fillStyle = g; x.fillRect(0,0,4,256);
+  var t = new THREE.CanvasTexture(c); scene.background = t;
+})();
+
+var camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 200);
+var camYaw = 0, camPitch = 0.28, camDist = 11;
+
+/* світло */
+scene.add(new THREE.HemisphereLight(0xCFF0FF, 0x4E7A46, 0.85));
+var sun = new THREE.DirectionalLight(0xFFF3D6, 1.05);
+sun.position.set(14, 22, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+var sc = sun.shadow.camera;
+sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 70;
+scene.add(sun);
+
+/* ---------- вода ---------- */
+var waterGeo = new THREE.PlaneGeometry(150, 150, 60, 60);
+waterGeo.rotateX(-Math.PI/2);
+var waterMat = new THREE.MeshStandardMaterial({
+  color:0x2F93AE, transparent:true, opacity:0.82, roughness:0.3, metalness:0.1
+});
+var water = new THREE.Mesh(waterGeo, waterMat);
+water.receiveShadow = true;
+scene.add(water);
+var waterBase = waterGeo.attributes.position.array.slice();
+
+/* дно, щоб вода не була порожньою */
+var floorMat = new THREE.MeshStandardMaterial({color:0x27584E, roughness:1});
+var floor = new THREE.Mesh(new THREE.PlaneGeometry(150,150), floorMat);
+floor.rotation.x = -Math.PI/2; floor.position.y = -2.4;
+scene.add(floor);
+
+/* ---------- матеріали ---------- */
+var M = {
+  pad:      new THREE.MeshStandardMaterial({color:0x4E9E4A, roughness:.85}),
+  padDark:  new THREE.MeshStandardMaterial({color:0x3B7C3A, roughness:.9}),
+  green:    new THREE.MeshStandardMaterial({color:0x63B35A, roughness:.62}),
+  belly:    new THREE.MeshStandardMaterial({color:0xF2762A, roughness:.55}),
+  rose:     new THREE.MeshStandardMaterial({color:0xF2789F, roughness:.62}),
+  roseBelly:new THREE.MeshStandardMaterial({color:0xFFD9E4, roughness:.55}),
+  eye:      new THREE.MeshStandardMaterial({color:0xFFFDF2, roughness:.35}),
+  pupil:    new THREE.MeshStandardMaterial({color:0x14231D, roughness:.3}),
+  reed:     new THREE.MeshStandardMaterial({color:0x6F9B4C, roughness:.9}),
+  petal:    new THREE.MeshStandardMaterial({color:0xFFF0F5, roughness:.7}),
+  yolk:     new THREE.MeshStandardMaterial({color:0xF7C948, roughness:.6}),
+  crystal:  new THREE.MeshStandardMaterial({color:0x8FE9FF, emissive:0x2FA8C8,
+              emissiveIntensity:.85, roughness:.15, metalness:.25,
+              transparent:true, opacity:.92})
+};
+
+/* ---------- модель жабки ---------- */
+function makeFrog(skin, belly, isRose){
+  var g = new THREE.Group();
+  var body = new THREE.Mesh(new THREE.SphereGeometry(.5, 24, 18), skin);
+  body.scale.set(1, .82, 1.14); body.position.y = .42;
+  body.castShadow = true; g.add(body);
+
+  var bel = new THREE.Mesh(new THREE.SphereGeometry(.47, 20, 14), belly);
+  bel.scale.set(.94, .6, 1.04); bel.position.set(0, .26, .07); g.add(bel);
+
+  var head = new THREE.Group(); head.position.y = .42; g.add(head);
+  [-1, 1].forEach(function(s){
+    var e = new THREE.Mesh(new THREE.SphereGeometry(.19, 16, 12), M.eye);
+    e.position.set(.23*s, .34, .2); e.castShadow = true; head.add(e);
+    var p = new THREE.Mesh(new THREE.SphereGeometry(.095, 12, 10), M.pupil);
+    p.position.set(.26*s, .35, .34); head.add(p);
+    if (isRose){
+      var l = new THREE.Mesh(new THREE.TorusGeometry(.13,.016,6,12,Math.PI*.6), M.pupil);
+      l.position.set(.25*s, .45, .26); l.rotation.set(-.5, 0, .3*s); head.add(l);
+    }
+  });
+  var mouth = new THREE.Mesh(new THREE.TorusGeometry(.19,.028,8,16,Math.PI), M.pupil);
+  mouth.position.set(0, .06, .44); mouth.rotation.set(0, 0, Math.PI);
+  head.add(mouth);
+
+  /* лапки */
+  var legs = [];
+  [[-.38,-.3],[.38,-.3],[-.34,.28],[.34,.28]].forEach(function(p){
+    var l = new THREE.Mesh(new THREE.SphereGeometry(.17,12,10), skin);
+    l.scale.set(1,.62,1.25); l.position.set(p[0], .16, p[1]);
+    l.castShadow = true; g.add(l); legs.push(l);
+  });
+
+  if (isRose){                       /* квітка на голові */
+    var fl = new THREE.Group(); fl.position.set(-.2, .82, -.02);
+    for (var i=0;i<5;i++){
+      var pt = new THREE.Mesh(new THREE.SphereGeometry(.1,10,8), M.petal);
+      pt.scale.set(1,.4,1.5);
+      pt.position.set(Math.cos(i/5*6.283)*.13, 0, Math.sin(i/5*6.283)*.13);
+      fl.add(pt);
+    }
+    var yo = new THREE.Mesh(new THREE.SphereGeometry(.06,10,8), M.yolk);
+    fl.add(yo); g.add(fl);
+  }
+  g.userData = {body:body, head:head, legs:legs};
+  return g;
+}
+
+/* ---------- латаття ---------- */
+function makePad(x, y, z, r, withFlower){
+  var g = new THREE.Group();
+  var top = new THREE.Mesh(new THREE.CylinderGeometry(r, r*.97, .16, 26), M.pad);
+  top.receiveShadow = true; top.castShadow = true; g.add(top);
+  var rim = new THREE.Mesh(new THREE.TorusGeometry(r, .07, 8, 28), M.padDark);
+  rim.rotation.x = Math.PI/2; rim.position.y = .05; g.add(rim);
+  /* прожилки */
+  for (var i=0;i<6;i++){
+    var v = new THREE.Mesh(new THREE.BoxGeometry(r*.9, .02, .045), M.padDark);
+    v.position.set(Math.cos(i/6*6.283)*r*.45, .085, Math.sin(i/6*6.283)*r*.45);
+    v.rotation.y = -i/6*6.283; g.add(v);
+  }
+  if (withFlower){
+    var fl = new THREE.Group(); fl.position.set(r*.55, .16, r*.2);
+    for (var j=0;j<6;j++){
+      var pt = new THREE.Mesh(new THREE.SphereGeometry(.16,10,8), M.petal);
+      pt.scale.set(1,.35,1.7);
+      pt.position.set(Math.cos(j/6*6.283)*.2, 0, Math.sin(j/6*6.283)*.2);
+      fl.add(pt);
+    }
+    fl.add(new THREE.Mesh(new THREE.SphereGeometry(.1,10,8), M.yolk));
+    g.add(fl);
+  }
+  g.position.set(x, y, z);
+  scene.add(g);
+  return {x:x, y:y, z:z, r:r, obj:g, targetY:y, rising:false};
+}
+
+/* ---------- рівень ---------- */
+var PADS = [];
+var LAYOUT = [
+  [0, .32, 14, 4.2, 0], [-4, .32, 9, 2.2, 1], [3.5, .62, 7, 2.0, 0],
+  [0, 1.0, 4, 1.9, 0],  [-5.5, .92, 2, 1.8, 1], [5, 1.3, 1, 1.7, 0],
+  [2, 1.85, -2.5, 1.6, 0], [-3, 1.6, -4, 1.6, 1], [-7, .72, -1, 1.5, 0],
+  [7.5, .62, -4, 1.6, 0]
+];
+LAYOUT.forEach(function(p){ PADS.push(makePad(p[0],p[1],p[2],p[3],p[4])); });
+
+/* стежка, що піднімається з води */
+var PATH = [];
+[[0,-6.4,1.5],[-1.6,-8.6,1.5],[1.6,-10.6,1.5],[0,-12.6,1.6]].forEach(function(p){
+  var pad = makePad(p[0], -1.6, p[1], p[2], 0);
+  pad.targetY = .95; pad.hidden = true;
+  PATH.push(pad); PADS.push(pad);
+});
+
+/* острів Куми */
+var island = makePad(0, .5, -16, 5, 1);
+
+/* очерет по колу */
+for (var i=0;i<64;i++){
+  var a = i/64*6.283, rr = 25 + Math.sin(i*2.7)*2.5;
+  var h = 2.4 + Math.random()*2.2;
+  var reed = new THREE.Mesh(new THREE.CylinderGeometry(.06,.09,h,6), M.reed);
+  reed.position.set(Math.cos(a)*rr, h/2 - .3, Math.sin(a)*rr);
+  reed.rotation.z = (Math.random()-.5)*.25; reed.castShadow = true;
+  scene.add(reed);
+}
+</script>
+<script>
+"use strict";
+/* ---------- переносимо острів і ставимо очеретяну огорожу ---------- */
+island.obj.position.set(0, .5, -18); island.z = -18; island.r = 4.5; island.y = .5; island.targetY = .5;
+PATH[0].obj.position.z = -6.4;  PATH[0].z = -6.4;
+PATH[1].obj.position.z = -8.6;  PATH[1].z = -8.6;
+PATH[2].obj.position.z = -10.6; PATH[2].z = -10.6;
+PATH[3].obj.position.set(0, -1.6, -12.4); PATH[3].z = -12.4; PATH[3].r = 1.5;
+PADS.push(island);
+
+var FENCE = {x:0, z:-18, r:6.2, top:.72};
+for (var fi=0; fi<52; fi++){
+  var fa = fi/52*6.283;
+  var fh = .95 + Math.sin(fi*1.9)*.18;
+  var fr = new THREE.Mesh(new THREE.CylinderGeometry(.07,.1,fh,6), M.reed);
+  fr.position.set(FENCE.x + Math.cos(fa)*FENCE.r, fh/2 - .12, FENCE.z + Math.sin(fa)*FENCE.r);
+  fr.rotation.z = (Math.random()-.5)*.2; fr.castShadow = true; scene.add(fr);
+}
+
+/* ---------- кристали ---------- */
+var crystalGeo = new THREE.OctahedronGeometry(.34, 0);
+var CRYSTALS = [];
+function addCrystal(x,y,z){
+  var g = new THREE.Group();
+  var m = new THREE.Mesh(crystalGeo, M.crystal); m.castShadow = true; g.add(m);
+  var beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(.055,.055,7,6),
+    new THREE.MeshBasicMaterial({color:0x9FF0FF, transparent:true, opacity:.2, depthWrite:false})
+  );
+  beam.position.y = 3.4; g.add(beam);
+  g.position.set(x,y,z); scene.add(g);
+  CRYSTALS.push({obj:g, mesh:m, x:x, y:y, z:z, taken:false, seed:Math.random()*6.28});
+}
+LAYOUT.forEach(function(p){ addCrystal(p[0], p[1]+1.15, p[2]); });
+addCrystal(1.75, 2.4, 5.5);
+addCrystal(4.8, 2.6, -3.2);
+var TOTAL = CRYSTALS.length;
+
+/* ---------- жабки ---------- */
+var kum = makeFrog(M.green, M.belly, false);
+scene.add(kum);
+var kuma = makeFrog(M.rose, M.roseBelly, true);
+kuma.position.set(0, .59, -17.4); kuma.rotation.y = Math.PI; kuma.scale.setScalar(1.34);
+scene.add(kuma);
+
+/* Блимка */
+var blymka = new THREE.Group();
+var blyMesh = new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),
+  new THREE.MeshBasicMaterial({color:0xFFE9A3}));
+blymka.add(blyMesh);
+var blyLight = new THREE.PointLight(0xFFDD88, .9, 6);
+blymka.add(blyLight);
+blymka.position.set(1,2,13); scene.add(blymka);
+
+/* ---------- стан ---------- */
+var P = {x:0, y:.9, z:14, vx:0, vy:0, vz:0, ground:true, swim:false, face:Math.PI, squash:1};
+var count = 0, charging = false, chargeT = 0, playing = false, ending = false, endT = 0;
+var keys = {}, camAuto = 0;
+var cntEl = document.getElementById('cnt'), hintEl = document.getElementById('hint');
+var hintT = 0;
+function hint(t, d){ hintEl.textContent = t; hintEl.classList.add('on'); hintT = d || 3.2; }
+
+/* ---------- звук ---------- */
+var AC = null;
+function actx(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function tone(f1, f2, dur, type, vol){
+  var a = actx(); if(!a) return;
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(f1, a.currentTime);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, a.currentTime + dur);
+  g.gain.setValueAtTime(vol || .18, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0008, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur + .02);
+}
+function croak(power){ tone(300 + power*90, 150, .14, 'sawtooth', .13); }
+function ding(n){ tone(660 + n*44, 1320 + n*44, .3, 'triangle', .16); }
+function splash(){ tone(180, 90, .22, 'sine', .1); }
+function fanfare(){
+  [0,.16,.32,.52,.78].forEach(function(t,i){
+    setTimeout(function(){ tone([523,659,784,1047,1319][i], null, .42, 'triangle', .16); }, t*1000);
+  });
+}
+
+/* ---------- керування ---------- */
+addEventListener('keydown', function(e){
+  if (e.code === 'Space'){ e.preventDefault(); if(!charging && (P.ground||P.swim) && playing){ charging = true; chargeT = 0; } }
+  keys[e.code] = true;
+});
+addEventListener('keyup', function(e){
+  if (e.code === 'Space' && charging) doJump();
+  keys[e.code] = false;
+});
+function doJump(){
+  if (!charging) return;
+  charging = false;
+  if (!P.ground && !P.swim) return;
+  var pw = Math.min(chargeT / .55, 1);
+  P.vy = (P.swim ? 8.2 : 8.4 + pw * 4.6);
+  P.ground = false; P.swim = false; P.squash = .74;
+  croak(pw);
+}
+
+/* миша — камера */
+var drag = false, lastX = 0;
+renderer.domElement.addEventListener('pointerdown', function(e){
+  if (e.pointerType === 'mouse'){ drag = true; lastX = e.clientX; }
+});
+addEventListener('pointerup', function(){ drag = false; });
+addEventListener('pointermove', function(e){
+  if (drag){ camYaw -= (e.clientX - lastX) * .006; lastX = e.clientX; camAuto = 2.2; }
+});
+
+/* тач */
+var isTouch = matchMedia('(pointer:coarse)').matches;
+var touchEl = document.getElementById('touch');
+var stickBase = document.getElementById('stickBase'), stickNub = document.getElementById('stickNub');
+var jumpBtn = document.getElementById('jumpBtn');
+var stickId = null, stickOX = 0, stickOY = 0, stickVX = 0, stickVY = 0;
+var camId = null, camLastX = 0;
+if (isTouch) touchEl.classList.add('on');
+
+touchEl.addEventListener('pointerdown', function(e){
+  if (e.target === jumpBtn){
+    if (playing && (P.ground || P.swim)){ charging = true; chargeT = 0; }
+    return;
+  }
+  if (e.clientX < innerWidth * .5 && stickId === null){
+    stickId = e.pointerId; stickOX = e.clientX; stickOY = e.clientY;
+    stickBase.style.left = stickOX+'px'; stickBase.style.top = stickOY+'px';
+    stickNub.style.left = stickOX+'px'; stickNub.style.top = stickOY+'px';
+    stickBase.style.display = stickNub.style.display = 'block';
+  } else if (camId === null){ camId = e.pointerId; camLastX = e.clientX; }
+});
+touchEl.addEventListener('pointermove', function(e){
+  if (e.pointerId === stickId){
+    var dx = e.clientX - stickOX, dy = e.clientY - stickOY;
+    var d = Math.hypot(dx, dy), max = 52;
+    if (d > max){ dx = dx/d*max; dy = dy/d*max; d = max; }
+    stickVX = dx/max; stickVY = dy/max;
+    stickNub.style.left = (stickOX+dx)+'px'; stickNub.style.top = (stickOY+dy)+'px';
+  } else if (e.pointerId === camId){
+    camYaw -= (e.clientX - camLastX) * .008; camLastX = e.clientX; camAuto = 2.2;
+  }
+});
+function endTouch(e){
+  if (e.pointerId === stickId){
+    stickId = null; stickVX = stickVY = 0;
+    stickBase.style.display = stickNub.style.display = 'none';
+  }
+  if (e.pointerId === camId) camId = null;
+  if (charging) doJump();
+}
+touchEl.addEventListener('pointerup', endTouch);
+touchEl.addEventListener('pointercancel', endTouch);
+
+/* ---------- допоміжне ---------- */
+function padAt(x, z, y){
+  var best = null, bestTop = -99;
+  for (var i=0;i<PADS.length;i++){
+    var p = PADS[i];
+    if (p.hidden) continue;
+    var dx = x - p.x, dz = z - p.z;
+    if (dx*dx + dz*dz < p.r*p.r){
+      var top = p.obj.position.y + .09;
+      if (top <= y + .45 && top > bestTop){ bestTop = top; best = p; }
+    }
+  }
+  return best ? {top:bestTop, pad:best} : null;
+}
+function nearestCrystal(){
+  var best = null, bd = 1e9;
+  for (var i=0;i<CRYSTALS.length;i++){
+    var c = CRYSTALS[i]; if (c.taken) continue;
+    var d = (c.x-P.x)*(c.x-P.x) + (c.z-P.z)*(c.z-P.z);
+    if (d < bd){ bd = d; best = c; }
+  }
+  return best;
+}
+function raisePath(){
+  var n = Math.min(Math.floor(count / 3), PATH.length);
+  for (var i=0;i<n;i++){
+    if (PATH[i].hidden){
+      PATH[i].hidden = false;
+      hint('З води піднявся листок стежки — до Куми ближче на один стрибок!', 3.4);
+      tone(300, 620, .5, 'sine', .14);
+    }
+  }
+}
+</script>
+<script>
+"use strict";
+/* ---------- серця для фіналу ---------- */
+var heartTex = (function(){
+  var c = document.createElement('canvas'); c.width = c.height = 64;
+  var x = c.getContext('2d');
+  x.font = '52px serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('💗', 32, 36);
+  return new THREE.CanvasTexture(c);
+})();
+var hearts = [];
+function spawnHearts(){
+  for (var i=0;i<26;i++){
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({map:heartTex, transparent:true, depthWrite:false}));
+    s.scale.setScalar(.7 + Math.random()*.5);
+    s.position.set((Math.random()-.5)*4, .6 + Math.random()*.6, -17.3 + (Math.random()-.5)*3);
+    s.userData = {v:1.1 + Math.random()*1.3, ph:Math.random()*6.28, life:0};
+    scene.add(s); hearts.push(s);
+  }
+}
+
+/* ---------- допоміжні ---------- */
+function lerpAngle(a, b, t){
+  var d = ((b - a + Math.PI) % 6.283 + 6.283) % 6.283 - Math.PI;
+  return a + d * t;
+}
+var padsEl = document.getElementById('pads');
+var winEl = document.getElementById('win'), introEl = document.getElementById('intro');
+
+/* ---------- головний цикл ---------- */
+var clock = new THREE.Clock();
+var camPos = new THREE.Vector3(0, 5, 24);
+var lookAt = new THREE.Vector3(0, 1, 14);
+
+function frame(){
+  requestAnimationFrame(frame);
+  var dt = Math.min(clock.getDelta(), .05);
+  var t = clock.elapsedTime;
+
+  /* вода */
+  var pos = water.geometry.attributes.position, arr = pos.array;
+  for (var i=0;i<arr.length;i+=3){
+    arr[i+1] = Math.sin(waterBase[i]*.35 + t*1.4) * .09 + Math.cos(waterBase[i+2]*.4 + t*1.1) * .09;
+  }
+  pos.needsUpdate = true;
+
+  /* кристали */
+  for (var ci=0; ci<CRYSTALS.length; ci++){
+    var c = CRYSTALS[ci]; if (c.taken) continue;
+    c.mesh.rotation.y += dt * 1.6;
+    c.obj.position.y = c.y + Math.sin(t*1.8 + c.seed) * .13;
+  }
+
+  /* стежка піднімається */
+  for (var pi=0; pi<PATH.length; pi++){
+    var pp = PATH[pi];
+    if (!pp.hidden && pp.obj.position.y < pp.targetY - .01)
+      pp.obj.position.y += (pp.targetY - pp.obj.position.y) * Math.min(1, dt*2.6);
+  }
+
+  if (playing && !ending) step(dt, t);
+  if (ending) endingStep(dt, t);
+
+  /* серця */
+  for (var hi=hearts.length-1; hi>=0; hi--){
+    var h = hearts[hi]; h.userData.life += dt;
+    h.position.y += h.userData.v * dt;
+    h.position.x += Math.sin(t*2 + h.userData.ph) * dt * .5;
+    h.material.opacity = Math.max(0, 1 - h.userData.life/3.4);
+    if (h.userData.life > 3.4){ scene.remove(h); hearts.splice(hi,1); }
+  }
+
+  /* Блимка */
+  var tgt = nearestCrystal();
+  var bx, by, bz;
+  if (tgt){ bx = tgt.x; by = tgt.y; bz = tgt.z; }
+  else { bx = kuma.position.x; by = 1.8; bz = kuma.position.z; }
+  var ddx = bx - P.x, ddz = bz - P.z, dl = Math.hypot(ddx, ddz) || 1;
+  blymka.position.x += ((P.x + ddx/dl*1.5 + Math.cos(t*2.4)*.35) - blymka.position.x) * Math.min(1, dt*3.4);
+  blymka.position.y += ((P.y + 1.45 + Math.sin(t*3.1)*.18) - blymka.position.y) * Math.min(1, dt*3.4);
+  blymka.position.z += ((P.z + ddz/dl*1.5 + Math.sin(t*2.4)*.35) - blymka.position.z) * Math.min(1, dt*3.4);
+  blyMesh.scale.setScalar(.9 + Math.sin(t*6)*.12);
+
+  /* підказка */
+  if (hintT > 0){ hintT -= dt; if (hintT <= 0) hintEl.classList.remove('on'); }
+
+  /* камера */
+  var lx = P.x, ly = P.y + 1.0, lz = P.z;
+  if (ending){ lx = 0; ly = 1.35; lz = -17.3; }
+  var cd = ending ? 7.2 : camDist;
+  camPos.set(
+    lx + Math.sin(camYaw) * cd * Math.cos(camPitch),
+    ly + cd * Math.sin(camPitch),
+    lz + Math.cos(camYaw) * cd * Math.cos(camPitch)
+  );
+  camera.position.lerp(camPos, Math.min(1, dt * (ending ? 2.2 : 7)));
+  lookAt.lerp(new THREE.Vector3(lx, ly, lz), Math.min(1, dt*8));
+  camera.lookAt(lookAt);
+  sun.position.set(P.x + 14, 22, P.z + 10);
+  sun.target.position.set(P.x, 0, P.z); sun.target.updateMatrixWorld();
+
+  renderer.render(scene, camera);
+}
+
+/* ---------- крок фізики ---------- */
+function step(dt, t){
+  var ix = 0, iz = 0;
+  if (keys['KeyW'] || keys['ArrowUp'] || keys['KeyZ']) iz -= 1;
+  if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
+  if (keys['KeyA'] || keys['ArrowLeft'] || keys['KeyQ']) ix -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+  ix += stickVX; iz += stickVY;
+  var l = Math.hypot(ix, iz); if (l > 1){ ix /= l; iz /= l; l = 1; }
+
+  var fz = -iz;
+  var mx = -Math.sin(camYaw) * fz + Math.cos(camYaw) * ix;
+  var mz = -Math.cos(camYaw) * fz - Math.sin(camYaw) * ix;
+
+  if (charging){
+    chargeT += dt;
+    if (chargeT > 1.0) doJump();
+  }
+  var spd = P.swim ? 4.4 : (charging ? 1.6 : 7.4);
+  P.vx += (mx * spd - P.vx) * Math.min(1, dt * 12);
+  P.vz += (mz * spd - P.vz) * Math.min(1, dt * 12);
+
+  var prevX = P.x, prevZ = P.z, prevY = P.y;
+  P.x += P.vx * dt; P.z += P.vz * dt;
+
+  /* очеретяна огорожа навколо острова */
+  var wasIn = (prevX-FENCE.x)*(prevX-FENCE.x) + (prevZ-FENCE.z)*(prevZ-FENCE.z) < FENCE.r*FENCE.r;
+  var isIn  = (P.x-FENCE.x)*(P.x-FENCE.x) + (P.z-FENCE.z)*(P.z-FENCE.z) < FENCE.r*FENCE.r;
+  if (!wasIn && isIn && P.y < FENCE.top){
+    P.x = prevX; P.z = prevZ; P.vx = P.vz = 0;
+    hint('Крізь очерет не пропливти. Збирай кристали — стежка з листків перенесе тебе понад ним.', 3.6);
+  }
+  /* межі ставка */
+  var rad = Math.hypot(P.x, P.z);
+  if (rad > 23){ P.x = P.x/rad*23; P.z = P.z/rad*23; }
+
+  /* вертикаль */
+  if (!P.ground) P.vy -= 24 * dt;
+  P.y += P.vy * dt;
+
+  var s = padAt(P.x, P.z, P.y);
+  var landed = false;
+  if (s && P.vy <= 0 && prevY >= s.top - .05 && P.y <= s.top){
+    P.y = s.top; P.vy = 0;
+    if (!P.ground){ P.squash = 1.28; if (P.swim) splash(); }
+    P.ground = true; P.swim = false; landed = true;
+  } else if (P.ground && (!s || P.y > s.top + .12)){
+    P.ground = false;
+  }
+  if (!landed && !P.ground && P.y < .22){
+    P.y = .22; P.vy = 0;
+    if (!P.swim){ P.swim = true; splash(); hint('У воді не тонуть — пливи до найближчого листка й вистрибуй.', 3); }
+  }
+
+  /* збір кристалів */
+  for (var i=0;i<CRYSTALS.length;i++){
+    var c = CRYSTALS[i]; if (c.taken) continue;
+    var dx = c.x - P.x, dy = c.obj.position.y - (P.y + .45), dz = c.z - P.z;
+    if (dx*dx + dy*dy + dz*dz < 1.5*1.5){
+      c.taken = true; scene.remove(c.obj);
+      count++; ding(count);
+      cntEl.textContent = count + ' / ' + TOTAL;
+      raisePath();
+      var done = Math.min(Math.floor(count/3), PATH.length);
+      padsEl.textContent = done >= PATH.length
+        ? 'Стежка готова — стрибай до неї!'
+        : 'Стежка: ' + done + ' з ' + PATH.length + ' листків';
+    }
+  }
+
+  /* зустріч */
+  var kdx = P.x - kuma.position.x, kdz = P.z - kuma.position.z;
+  if (kdx*kdx + kdz*kdz < 2.4*2.4){ startEnding(); }
+
+  /* анімація жабки */
+  var target = 1;
+  if (charging) target = .72 - Math.min(chargeT/.55, 1) * .1;
+  P.squash += (target - P.squash) * Math.min(1, dt * 9);
+  kum.position.set(P.x, P.y, P.z);
+  kum.scale.set(1.34/Math.sqrt(P.squash), 1.34*P.squash, 1.34/Math.sqrt(P.squash));
+  if (l > .08) P.face = lerpAngle(P.face, Math.atan2(mx, mz), Math.min(1, dt*10));
+  kum.rotation.y = P.face;
+  if (P.swim) kum.position.y = .22 + Math.sin(t*3)*.05;
+
+  /* автовирівнювання камери */
+  if (camAuto > 0) camAuto -= dt;
+  else if (l > .3) camYaw = lerpAngle(camYaw, Math.atan2(-mx, -mz), Math.min(1, dt*1.1));
+}
+
+/* ---------- фінал ---------- */
+function startEnding(){
+  if (ending) return;
+  ending = true; endT = 0; charging = false;
+  spawnHearts(); fanfare();
+  hintEl.classList.remove('on');
+  padsEl.textContent = 'Знайшов 🩷';
+}
+function endingStep(dt, t){
+  endT += dt;
+  var e = Math.min(endT / 1.3, 1);
+  kum.position.x += (1.15 - kum.position.x) * Math.min(1, dt*2.4);
+  kum.position.z += (-17.1 - kum.position.z) * Math.min(1, dt*2.4);
+  kum.position.y = .59 + Math.abs(Math.sin(t*3.4)) * .3 * e;
+  kum.rotation.y = lerpAngle(kum.rotation.y, 0.35, Math.min(1, dt*2.5));
+  kum.scale.set(1.34,1.34,1.34);
+  kuma.position.x += (-1.15 - kuma.position.x) * Math.min(1, dt*2.4);
+  kuma.position.z += (-17.1 - kuma.position.z) * Math.min(1, dt*2.4);
+  kuma.position.y = .59 + Math.abs(Math.sin(t*3.4 + 1.6)) * .3 * e;
+  kuma.rotation.y = lerpAngle(kuma.rotation.y, -0.35, Math.min(1, dt*2.5));
+  camYaw += dt * .22;
+  if (endT > 2.2 && winEl.classList.contains('hide')) winEl.classList.remove('hide');
+  if (endT > 4 && hearts.length < 6) spawnHearts();
+}
+
+/* ---------- запуск ---------- */
+document.getElementById('go').addEventListener('click', function(){
+  introEl.classList.add('hide');
+  playing = true;
+  var a = actx(); if (a && a.state === 'suspended') a.resume();
+  cntEl.textContent = '0 / ' + TOTAL;
+  padsEl.textContent = 'Стежка: 0 з ' + PATH.length + ' листків';
+  hint('Збери кристали. Блимка летить туди, де найближчий.', 4);
+});
+document.getElementById('again').addEventListener('click', function(){
+  winEl.classList.add('hide');
+  spawnHearts(); fanfare(); endT = 0;
+});
+addEventListener('resize', function(){
+  W = innerWidth; H = innerHeight;
+  camera.aspect = W/H; camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+});
+kum.position.set(P.x, P.y, P.z);
+frame();
+</script>
