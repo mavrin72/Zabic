@@ -2,170 +2,105 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@500;800;900&family=Nunito:wght@400;700&display=swap">
 <style>
 :root{
-  --ink:#150E27;        /* найглибший фон сторінки */
-  --grape:#241640;      /* корпус автомата */
-  --panel:#2E1D4D;      /* панелі всередині корпусу */
-  --line:#4B2E82;       /* канти й шви */
-  --cream:#FFF3DA;      /* основний текст */
-  --lilac:#BFA3E6;      /* приглушений текст */
-  --sun:#FFC93C;        /* акцент: монети */
-  --lagoon:#2AB7E6;     /* другий акцент: футболка Жабіка */
-  --leaf:#5FD06A;
+  --ink:#150E27; --grape:#241640; --panel:#2E1D4D; --line:#4B2E82;
+  --cream:#FFF3DA; --lilac:#BFA3E6; --sun:#FFC93C; --lagoon:#2AB7E6; --leaf:#5FD06A;
   --pixel:"Press Start 2P","Courier New",monospace;
   --display:"Rubik","Trebuchet MS",sans-serif;
   --body:"Nunito","Trebuchet MS",sans-serif;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
 body{
-  margin:0;background:var(--ink);color:var(--cream);font-family:var(--body);
-  background-image:
-    radial-gradient(circle at 18% 12%, rgba(75,46,130,.55), transparent 42%),
-    radial-gradient(circle at 84% 78%, rgba(42,183,230,.16), transparent 46%);
-  background-attachment:fixed;
-  overscroll-behavior:none;
+  background:var(--ink);color:var(--cream);font-family:var(--body);
+  overscroll-behavior:none;touch-action:none;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
 }
-.wrap{max-width:56rem;margin:0 auto;padding:clamp(1rem,3vw,2.4rem) 1rem 3rem;
-  display:flex;flex-direction:column;gap:1.4rem}
+/* полотно — центр екрана, решту заповнює корпус */
+#screen{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  image-rendering:pixelated;display:block;background:#3FB8F0}
 
-/* --- шапка --- */
-.eyebrow{font-family:var(--pixel);font-size:.55rem;letter-spacing:.12em;
-  color:var(--sun);margin:0 0 .8rem;text-transform:uppercase}
+/* кутові чіпи: звук і повний екран */
+#chips{position:fixed;z-index:6;display:flex;gap:.4rem;
+  top:calc(env(safe-area-inset-top,0px) + .55rem);
+  right:calc(env(safe-area-inset-right,0px) + .55rem);
+  transition:opacity .4s}
+#chips.idle{opacity:.16}
+.chip{font-family:var(--pixel);font-size:.5rem;line-height:1;color:var(--lilac);
+  background:rgba(36,22,64,.82);border:2px solid var(--line);border-bottom-width:4px;
+  border-radius:6px;padding:.5rem .55rem;cursor:pointer;min-width:2.1rem;text-align:center}
+.chip:active{transform:translateY(2px);border-bottom-width:2px}
+.chip:focus-visible{outline:3px solid var(--lagoon);outline-offset:2px}
+
+/* екрани поверх гри */
+#overlay{position:fixed;inset:0;z-index:5;display:flex;align-items:center;
+  justify-content:center;overflow-y:auto;background:rgba(21,14,39,.92);
+  padding:calc(env(safe-area-inset-top,0px) + 1rem) 1rem calc(env(safe-area-inset-bottom,0px) + 1rem)}
+#overlay[hidden]{display:none}
+.sheet{width:min(30rem,100%);display:flex;flex-direction:column;align-items:center;
+  gap:.85rem;text-align:center}
+.mascot{width:72px;height:90px;image-rendering:pixelated;
+  filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
+.eyebrow{font-family:var(--pixel);font-size:.5rem;letter-spacing:.14em;color:var(--sun);margin:0}
 h1{font-family:var(--display);font-weight:900;margin:0;line-height:.95;
-  font-size:clamp(2.1rem,7vw,3.6rem);letter-spacing:-.02em;text-wrap:balance}
+  font-size:clamp(1.9rem,8vw,3rem);letter-spacing:-.02em;text-wrap:balance}
 h1 em{font-style:normal;color:var(--lagoon)}
-.lede{margin:.7rem 0 0;max-width:34rem;line-height:1.6;color:var(--lilac);font-size:1rem}
-
-/* --- корпус автомата --- */
-.cab{background:var(--grape);border:4px solid var(--line);border-radius:14px;
-  box-shadow:0 10px 0 rgba(0,0,0,.42), inset 0 0 0 2px rgba(255,243,218,.05);
-  padding:0;overflow:hidden}
-.cab-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;
-  padding:.6rem .9rem;background:var(--panel);border-bottom:3px solid var(--line)}
-.cab-name{font-family:var(--pixel);font-size:.5rem;color:var(--lilac);letter-spacing:.1em}
-.bolt{width:9px;height:9px;background:var(--line);
-  box-shadow:0 0 0 2px rgba(0,0,0,.25) inset;flex:none}
-.screen-wrap{position:relative;display:flex;justify-content:center;
-  padding:clamp(.6rem,2vw,1.1rem);background:#0B0718}
-canvas{display:block;image-rendering:pixelated;max-width:100%;
-  border:2px solid #0B0718;box-shadow:0 0 0 3px var(--line), 0 0 34px rgba(42,183,230,.2)}
-
-/* --- екрани поверх полотна --- */
-.overlay{position:absolute;inset:clamp(.6rem,2vw,1.1rem);display:flex;
-  align-items:center;justify-content:center;padding:1rem;
-  background:rgba(21,14,39,.86);text-align:center}
-.overlay[hidden]{display:none}
-.sheet{max-width:24rem;display:flex;flex-direction:column;align-items:center;gap:.75rem}
-.sheet h2{font-family:var(--display);font-weight:900;margin:0;
-  font-size:clamp(1.3rem,4.4vw,1.9rem);line-height:1.05;text-wrap:balance}
-.sheet p{margin:0;font-size:.92rem;line-height:1.55;color:var(--lilac)}
-.sheet .tally{font-family:var(--pixel);font-size:.72rem;color:var(--sun);letter-spacing:.06em}
-button{font-family:var(--pixel);font-size:.68rem;color:var(--ink);background:var(--sun);
-  border:0;border-bottom:4px solid #B98600;border-radius:6px;padding:.85rem 1.5rem;
-  cursor:pointer;letter-spacing:.04em;transition:transform .08s, filter .15s}
-button:hover{filter:brightness(1.08)}
-button:active{transform:translateY(3px);border-bottom-width:1px}
-button:focus-visible{outline:3px solid var(--lagoon);outline-offset:3px}
-
-/* --- підборіддя автомата: клавіші --- */
-.chin{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .9rem;
-  padding:.75rem .9rem;background:var(--panel);border-top:3px solid var(--line)}
-.chin .grp{display:flex;align-items:center;gap:.4rem}
-.chin .lbl{font-size:.8rem;color:var(--lilac)}
+h2{font-family:var(--display);font-weight:900;margin:0;
+  font-size:clamp(1.4rem,6vw,2.1rem);line-height:1.05;text-wrap:balance}
+.sheet p{margin:0;font-size:.95rem;line-height:1.55;color:var(--lilac);max-width:26rem}
+.tally{font-family:var(--pixel);font-size:.66rem;color:var(--sun);letter-spacing:.06em;
+  line-height:1.9}
+/* легенда керування */
+.legend{display:grid;gap:.45rem;width:100%;max-width:23rem;margin:.2rem 0 .1rem}
+.row{display:flex;align-items:center;gap:.6rem;justify-content:flex-start;
+  background:rgba(46,29,77,.55);border-left:3px solid var(--line);
+  padding:.5rem .7rem;text-align:left}
+.row .what{font-size:.86rem;color:var(--cream);flex:1}
+.row .how{font-family:var(--pixel);font-size:.5rem;color:var(--lilac);
+  letter-spacing:.04em;text-align:right;line-height:1.7}
 kbd{font-family:var(--pixel);font-size:.5rem;color:var(--cream);background:var(--grape);
   border:2px solid var(--line);border-bottom-width:4px;border-radius:5px;
-  padding:.35rem .45rem;min-width:1.7rem;text-align:center;display:inline-block}
-.chin .spacer{flex:1 1 auto}
-.mute{background:var(--grape);color:var(--lilac);border:2px solid var(--line);
-  border-bottom-width:4px;font-size:.5rem;padding:.42rem .7rem}
-
-/* --- сенсорні кнопки --- */
-.pad{display:none;gap:.6rem;justify-content:space-between}
-.pad .side{display:flex;gap:.6rem}
-.pad button{flex:1;min-width:4.2rem;padding:1.15rem 1rem;font-size:.9rem;
-  background:var(--panel);color:var(--cream);border:2px solid var(--line);border-bottom-width:5px}
-.pad button.jump{background:var(--leaf);color:var(--ink);border-color:#2F8C42}
-@media (pointer:coarse){.pad{display:flex}}
-
-/* --- нотатки під автоматом --- */
-.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:1rem}
-.note{border-left:3px solid var(--line);padding:.1rem 0 .1rem .9rem}
-.note h3{font-family:var(--pixel);font-size:.55rem;color:var(--sun);margin:0 0 .5rem;
-  letter-spacing:.08em}
-.note p{margin:0;font-size:.9rem;line-height:1.6;color:var(--lilac)}
-.note b{color:var(--cream);font-weight:700}
-footer{font-size:.8rem;color:#7C689E;border-top:1px solid var(--line);padding-top:1rem}
+  padding:.3rem .38rem;display:inline-block}
+button.go{font-family:var(--pixel);font-size:.72rem;color:var(--ink);background:var(--sun);
+  border:0;border-bottom:5px solid #B98600;border-radius:7px;padding:1rem 1.7rem;
+  cursor:pointer;letter-spacing:.04em;margin-top:.3rem}
+button.go:active{transform:translateY(3px);border-bottom-width:2px}
+button.go:focus-visible{outline:3px solid var(--lagoon);outline-offset:3px}
+.rotate{font-size:.82rem;color:var(--sun);margin:0;display:none}
+.portrait .rotate{display:block}
+footer{font-size:.74rem;color:#7C689E;margin:.2rem 0 0}
+/* підказка про зони жестів — з'являється на кілька секунд після старту */
+#hint{position:fixed;inset:auto 0 0 0;top:0;z-index:4;display:none;pointer-events:none;
+  opacity:0;transition:opacity .5s}
+#hint.on{display:flex;opacity:1}
+#hint div{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--pixel);font-size:.5rem;line-height:1.9;color:rgba(255,243,218,.92);
+  text-shadow:0 2px 0 rgba(21,16,48,.9)}
+#hint div+div{border-left:2px dashed rgba(255,243,218,.35)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="wrap">
-  <header>
-    <p class="eyebrow">Ставокрай · піксельний рівень</p>
-    <h1>Жабік-<em>Стрибун</em></h1>
-    <p class="lede">Фіолетове жабеня в синій футболці із зіркою біжить сонячним берегом,
-      збирає золоті монети-краплі й стрибає жукам на голови. Три серця, один прапорець
-      у кінці шляху.</p>
-  </header>
-
-  <div class="cab">
-    <div class="cab-top">
-      <span class="bolt"></span>
-      <span class="cab-name">ZHABIK · LEVEL 1</span>
-      <span class="bolt"></span>
-    </div>
-    <div class="screen-wrap">
-      <canvas id="screen" width="320" height="192" aria-label="Ігрове поле"></canvas>
-      <div class="overlay" id="overlay"></div>
-    </div>
-    <div class="chin">
-      <span class="grp"><kbd>A</kbd><kbd>D</kbd><span class="lbl">рух</span></span>
-      <span class="grp"><kbd>SPACE</kbd><span class="lbl">стрибок</span></span>
-      <span class="grp"><kbd>P</kbd><span class="lbl">пауза</span></span>
-      <span class="spacer"></span>
-      <button class="mute" id="mute" type="button">ЗВУК: УВІМК</button>
-    </div>
-  </div>
-
-  <div class="pad" id="pad">
-    <span class="side">
-      <button type="button" data-key="left" aria-label="Ліворуч">◀</button>
-      <button type="button" data-key="right" aria-label="Праворуч">▶</button>
-    </span>
-    <button type="button" class="jump" data-key="jump" aria-label="Стрибок">СТРИБОК</button>
-  </div>
-
-  <section class="notes">
-    <div class="note">
-      <h3>МЕТА</h3>
-      <p>Дійти до <b>смугастого прапорця</b> в кінці рівня. Монети дають по 10 очок,
-        збитий ворог — 50, а кожне вціліле серце наприкінці — ще 200.</p>
-    </div>
-    <div class="note">
-      <h3>ЯК БИТИ</h3>
-      <p>Стрибок <b>згори</b> вбиває жука й осу і підкидає Жабіка вище. Дотик збоку
-        коштує серця. Шипи й прірва теж забирають серце — Жабік повертається
-        на останню тверду землю.</p>
-    </div>
-    <div class="note">
-      <h3>ПОРАДА</h3>
-      <p>Стрибок <b>висотою по кнопці</b>: коротке натискання — низько, утримання — на всю.
-        Є частка секунди на стрибок уже за краєм платформи.</p>
-    </div>
-  </section>
-
-  <footer>Один HTML-файл, без збірки й зовнішніх ассетів: усі спрайти намальовані
-    пікселями просто в коді.</footer>
+<canvas id="screen" width="320" height="192" aria-label="Жабік-Стрибун"></canvas>
+<div id="chips">
+  <button class="chip" id="mute" type="button" title="Звук">ЗВУК</button>
+  <button class="chip" id="full" type="button" title="Повний екран">[ ]</button>
 </div>
+<div id="hint" aria-hidden="true">
+  <div>&#9664; &nbsp;ВЕСТИ ПАЛЬЦЕМ&nbsp; &#9654;</div>
+  <div>ТОРКНУТИСЬ =<br>СТРИБОК</div>
+</div>
+<div id="overlay"></div>
 
 <script>
 "use strict";
 /* ============================================================
    ЖАБІК-СТРИБУН — піксельний платформер в одному файлі.
-   Полотно 320x192 «художніх» пікселів, збільшене цілим кроком.
+   Полотно — «художні» пікселі, збільшені цілим кроком під екран.
    ============================================================ */
 
-const VW = 320, VH = 192, TILE = 16;
-const COLS = 208, ROWS = 16;
+const TILE = 16, COLS = 208, ROWS = 16;
 const WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
+let VW = 320, VH = 192, SCALE = 2;      /* видима область у пікселях + крок */
 
 /* ---------- малювання спрайтів з піксельних мап ---------- */
 function sprite(rows, pal){
@@ -212,12 +147,16 @@ function frogBody(dir){                       // dir: 1 праворуч, -1 л�
     '.KPKBBBBBBBKPK..'
   ];
 }
+/* Ноги. Ступні завжди лишаються під тілом — ліва в колонках 2..7,
+   права в 8..13. Крок міняє тільки висоту ступні, тому цикл читається
+   як перебирання лапами, а не як розліт ніг урізнобіч. */
 const LEGS = {
   stand: ['...KJJJKKJJJK...','...KJJJKKJJJK...','...KJjJKKJjJK...','..KKPPKKKKPPKK..'],
-  run1:  ['...KJJJKKJJJK...','..KJJJK..KJJJK..','.KKPPKK...KJJJK.','..........KKPPKK'],
-  run2:  ['...KJJJKKJJJK...','..KJJJK..KJJJK..','.KJJJK...KKPPKK.','KKPPKK..........'],
-  jump:  ['...KJJJKKJJJK...','..KJJJK..KJJJK..','.KKPPKK..KKPPKK.','................']
+  stepL: ['...KJJJKKJJJK...','...KJJJKKJJJK...','..KKPPKKKJjJK...','........KKPPKK..'],
+  stepR: ['...KJJJKKJJJK...','...KJJJKKJJJK...','...KJjJKKKPPKK..','..KKPPKK........'],
+  jump:  ['...KJJJKKJJJK...','...KJJJKKJJJK...','..KKPPKKKKPPKK..','................']
 };
+const RUN_CYCLE = ['stepL', 'stand', 'stepR', 'stand'];
 const FROG = {};
 for (const dir of [1, -1]){
   for (const pose in LEGS){
@@ -285,17 +224,14 @@ const seg = (x, w, top) => rect(x, top, w, ROWS - top, 1);
 const plat = (x, y, w) => rect(x, y, w, 1, 2);
 const spikes = (x, y, w) => rect(x, y, w, 1, 3);
 
-/* ділянки землі — між ними прірви */
 seg(0, 27, 13);  seg(30, 23, 13); seg(56, 6, 12);  seg(65, 10, 11);
 seg(75, 14, 13); seg(89, 20, 13); seg(112, 6, 12); seg(118, 6, 11);
 seg(124, 6, 10); seg(133, 28, 13); seg(164, 4, 13); seg(181, 27, 13);
-/* висячі платформи */
 plat(13, 10, 3);  plat(20, 9, 3);   plat(34, 9, 4);   plat(44, 10, 3);
 plat(58, 9, 2);   plat(68, 8, 3);   plat(80, 10, 4);  plat(92, 10, 3);
 plat(99, 9, 3);   plat(106, 10, 3); plat(137, 9, 4);  plat(145, 8, 3);
 plat(152, 10, 4); plat(169, 11, 2); plat(173, 10, 2); plat(177, 11, 2);
 plat(186, 10, 3); plat(191, 9, 3);
-/* шипи */
 spikes(40, 12, 2); spikes(48, 12, 1); spikes(101, 12, 2);
 spikes(140, 12, 2); spikes(155, 12, 1); spikes(184, 12, 2);
 
@@ -342,7 +278,6 @@ function resetEntities(){
     enemies.push({ kind:'wasp', ax:tx*TILE+2, ay:ty*TILE, x:tx*TILE+2, y:ty*TILE,
                    w:10, h:8, t:tx*11, dead:0 });
   }
-  /* жуки падають на свою землю */
   for (const e of enemies){
     if (e.kind !== 'bug') continue;
     let ty = 0;
@@ -353,15 +288,20 @@ function resetEntities(){
 
 /* ---------- стан гри ---------- */
 const player = { x:START.x, y:START.y, vx:0, vy:0, w:10, h:18, dir:1,
-                 grounded:false, coyote:0, buffer:0, anim:0, squash:0, iframes:0 };
+                 grounded:false, coyote:0, buffer:0, anim:0, squash:0,
+                 iframes:0, autoJump:0 };
 let lives, score, got, camX, camY, shake, state, tick, safe, flagRaise;
 
+function camClampY(v){
+  if (VH >= WORLD_H) return (WORLD_H - VH) / 2;
+  return Math.max(0, Math.min(v, WORLD_H - VH));
+}
 function resetLevel(fullReset){
   if (fullReset){ lives = 3; score = 0; got = 0; }
   resetEntities();
   player.x = START.x; player.y = START.y; player.vx = 0; player.vy = 0;
-  player.dir = 1; player.iframes = 0; player.squash = 0;
-  camX = 0; camY = WORLD_H - VH; shake = 0; tick = 0; flagRaise = 0;
+  player.dir = 1; player.iframes = 0; player.squash = 0; player.autoJump = 0;
+  camX = 0; camY = camClampY(WORLD_H); shake = 0; tick = 0; flagRaise = 0;
   safe = { x: START.x, y: START.y };
 }
 
@@ -395,7 +335,12 @@ const SFX = {
   over:  () => [0, 1, 2].forEach(i => setTimeout(() => beep([392,311,196][i], 0.3, 'triangle', 0.06), i * 190))
 };
 
-/* ---------- керування ---------- */
+/* ---------- полотно ---------- */
+const cvs = document.getElementById('screen');
+const ctx = cvs.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+/* ---------- керування: клавіатура ---------- */
 const keys = { left:false, right:false, jump:false };
 const KEYMAP = {
   ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right',
@@ -403,6 +348,7 @@ const KEYMAP = {
 };
 addEventListener('keydown', e => {
   if (e.code === 'KeyP' || e.code === 'Escape'){ togglePause(); e.preventDefault(); return; }
+  if (e.code === 'KeyF'){ toggleFull(); e.preventDefault(); return; }
   if (e.code === 'Enter' && state !== 'play'){ primary(); e.preventDefault(); return; }
   const k = KEYMAP[e.code];
   if (!k) return;
@@ -414,28 +360,71 @@ addEventListener('keydown', e => {
   keys[k] = true;
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
-addEventListener('blur', () => { keys.left = keys.right = keys.jump = false;
-  if (state === 'play') setState('pause'); });
-
-document.getElementById('pad').addEventListener('pointerdown', e => {
-  const k = e.target.dataset.key; if (!k) return;
-  e.preventDefault(); e.target.setPointerCapture(e.pointerId);
-  if (state !== 'play'){ primary(); return; }
-  keys[k] = true;
-  if (k === 'jump') player.buffer = 7;
-});
-document.getElementById('pad').addEventListener('pointerup', e => {
-  const k = e.target.dataset.key; if (k) keys[k] = false;
-});
-document.getElementById('pad').addEventListener('pointercancel', e => {
-  const k = e.target.dataset.key; if (k) keys[k] = false;
+addEventListener('blur', () => {
+  keys.left = keys.right = keys.jump = false;
+  touch.clear();
+  if (state === 'play') setState('pause');
 });
 
-const muteBtn = document.getElementById('mute');
-muteBtn.addEventListener('click', () => {
-  muted = !muted;
-  muteBtn.textContent = muted ? 'ЗВУК: ВИМК' : 'ЗВУК: УВІМК';
-});
+/* ---------- керування: жести (без екранних кнопок) ----------
+   Ліва половина екрана — вести пальцем ліворуч/праворуч.
+   Права половина — торкнутися, щоб стрибнути; тримати — стрибок вищий.
+   Свайп угору будь-де — теж стрибок, щоб можна було грати однією рукою. */
+const touch = new Map();
+let hintFade = 0;                       /* підказка про зони на початку гри */
+const DEAD = 9, DRAG = 44, SWIPE = 30;
+
+function artPoint(e){
+  const r = cvs.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / SCALE, y: (e.clientY - r.top) / SCALE };
+}
+function doJump(){
+  player.buffer = 7;
+  keys.jump = true;
+  player.autoJump = 13;                 /* тримаємо «кнопку» — стрибок на всю висоту */
+}
+function pointerDown(e){
+  if (e.pointerType === 'mouse' || state !== 'play') return;
+  if (e.target && e.target.closest && e.target.closest('#chips, #overlay')) return;
+  e.preventDefault();
+  const half = innerWidth / 2;
+  if (e.clientX < half){
+    touch.set(e.pointerId, { role:'move', ox:e.clientX, oy:e.clientY, x:e.clientX, y:e.clientY });
+  } else {
+    touch.set(e.pointerId, { role:'jump', ox:e.clientX, oy:e.clientY, x:e.clientX, y:e.clientY });
+    doJump();
+    player.autoJump = 0;                /* тут висоту тримає сам палець */
+    const p = artPoint(e);
+    sparks.push({ ring:1, x:p.x + camX, y:p.y + camY, life:16, c:'#FFF3DA' });
+  }
+}
+function pointerMove(e){
+  const t = touch.get(e.pointerId);
+  if (!t) return;
+  t.x = e.clientX; t.y = e.clientY;
+  if (t.oy - t.y > SWIPE){              /* свайп угору = стрибок */
+    doJump();
+    t.oy = t.y;
+  }
+  if (t.role !== 'move') return;
+  const dx = t.x - t.ox;
+  if (dx > DRAG) t.ox = t.x - DRAG;
+  if (dx < -DRAG) t.ox = t.x + DRAG;
+  keys.right = dx > DEAD;
+  keys.left  = dx < -DEAD;
+}
+function pointerUp(e){
+  const t = touch.get(e.pointerId);
+  if (!t) return;
+  touch.delete(e.pointerId);
+  if (t.role === 'move'){ keys.left = keys.right = false; }
+  else { keys.jump = false; player.autoJump = 0; }
+}
+addEventListener('pointerdown', pointerDown, { passive:false });
+addEventListener('pointermove', pointerMove, { passive:false });
+addEventListener('pointerup', pointerUp);
+addEventListener('pointercancel', pointerUp);
+addEventListener('contextmenu', e => { if (state === 'play') e.preventDefault(); });
 </script>
 
 <script>
@@ -478,6 +467,15 @@ function puff(x, y, n, color, spd){
                   life: 18 + Math.random() * 14, c: color });
   }
 }
+/* пилюка з-під ніг: низька, симетрична, без розльоту вгору */
+function dust(x, y, n, color){
+  for (let i = 0; i < n; i++){
+    const side = i % 2 ? 1 : -1;
+    sparks.push({ x: x + side * (2 + Math.random() * 3), y: y - 1,
+                  vx: side * (0.25 + Math.random() * 0.35), vy: -0.25 - Math.random() * 0.2,
+                  life: 9 + Math.random() * 5, c: color });
+  }
+}
 
 function hurt(){
   if (player.iframes > 0 || state !== 'play') return;
@@ -497,6 +495,8 @@ function respawn(){
 }
 
 function updatePlayer(){
+  if (player.autoJump > 0 && --player.autoJump === 0) keys.jump = false;
+
   const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   const acc = player.grounded ? ACC : AIR_ACC;
   if (dir){ player.vx += dir * acc; player.dir = dir; }
@@ -510,32 +510,28 @@ function updatePlayer(){
   if (player.buffer > 0 && player.coyote > 0){
     player.vy = -JUMP_V; player.buffer = 0; player.coyote = 0;
     player.grounded = false; player.squash = -6; SFX.jump();
-    puff(player.x + 5, player.y + player.h, 4, '#FFF3DA', 0.9);
+    dust(player.x + 5, player.y + player.h, 2, '#E8DCC0');
   }
-  /* стрибок по висоті кнопки */
-  if (!keys.jump && player.vy < -3) player.vy = -3;
+  if (!keys.jump && player.vy < -3) player.vy = -3;   /* висота за тривалістю */
 
   player.vy = Math.min(player.vy + GRAV, MAXFALL);
   moveX(player, player.vx);
   const hit = moveY(player, player.vy);
   if (hit === 1){
-    if (!player.grounded){ player.squash = 5; puff(player.x + 5, player.y + player.h, 3, '#C9A26B', 0.7); }
+    if (!player.grounded){ player.squash = 5; dust(player.x + 5, player.y + player.h, 2, '#C9A26B'); }
     player.grounded = true; player.coyote = 7;
   } else {
     if (player.grounded) player.coyote = 7;
     player.grounded = false;
   }
 
-  /* шипи */
   const t = tilesAround(player.x + 1, player.y + 6, player.w - 2, player.h - 6);
   for (let ty = t.y0; ty <= t.y1; ty++)
     for (let tx = t.x0; tx <= t.x1; tx++)
       if (at(tx, ty) === 3){ hurt(); if (lives > 0) respawn(); return; }
 
-  /* прірва */
   if (player.y > WORLD_H + 20){ hurt(); if (lives > 0) respawn(); return; }
 
-  /* остання тверда земля для повернення */
   if (player.grounded && tick % 12 === 0){
     const fx = Math.floor((player.x + player.w / 2) / TILE);
     const fy = Math.floor((player.y + player.h) / TILE);
@@ -547,7 +543,10 @@ function updatePlayer(){
   if (player.iframes > 0) player.iframes--;
   if (player.squash > 0) player.squash--;
   if (player.squash < 0) player.squash++;
-  player.anim += Math.abs(player.vx) * 0.16;
+
+  /* цикл бігу: крок — пауза — крок — пауза */
+  if (player.grounded && Math.abs(player.vx) > 0.2) player.anim += Math.abs(player.vx) * 0.135;
+  else player.anim = 0;
 }
 
 function updateEnemies(){
@@ -596,13 +595,15 @@ function updateCoins(){
 function updateSparks(){
   for (let i = sparks.length - 1; i >= 0; i--){
     const s = sparks[i];
-    s.x += s.vx; s.y += s.vy; s.vy += 0.09; s.life--;
+    if (!s.ring){ s.x += s.vx; s.y += s.vy; s.vy += 0.09; }
+    s.life--;
     if (s.life <= 0) sparks.splice(i, 1);
   }
 }
 
 function update(){
   tick++;
+  if (hintFade > 0) hintFade--;
   updatePlayer();
   if (state !== 'play') return;
   updateEnemies();
@@ -610,14 +611,13 @@ function update(){
   updateSparks();
   if (shake > 0) shake -= 0.5;
 
-  if (player.x + player.w > FLAG_X + 2 && state === 'play'){
+  if (player.x + player.w > FLAG_X + 2){
     score += lives * 200;
     setState('win'); SFX.win();
   }
 
-  /* камера з м'яким доганянням */
   const tx = Math.max(0, Math.min(player.x + player.w / 2 - VW / 2 + player.dir * 26, WORLD_W - VW));
-  const ty = Math.max(0, Math.min(player.y + player.h / 2 - VH / 2 + 16, WORLD_H - VH));
+  const ty = camClampY(player.y + player.h / 2 - VH / 2 + 16);
   camX += (tx - camX) * 0.11;
   camY += (ty - camY) * 0.08;
 }
@@ -626,10 +626,6 @@ function update(){
 <script>
 "use strict";
 /* ---------- малювання ---------- */
-const cvs = document.getElementById('screen');
-const ctx = cvs.getContext('2d');
-ctx.imageSmoothingEnabled = false;
-
 const SKY = ['#3FB8F0','#55C4F4','#6ECFF7','#88DAF9','#A2E3FA','#BDEBFB','#D6F2FC','#E9F8FD'];
 const hash = (x, y) => { let h = (x * 73856093) ^ (y * 19349663); h = (h ^ (h >>> 13)) >>> 0; return h; };
 
@@ -637,48 +633,65 @@ function drawText(s, x, y, color, align){
   ctx.font = '8px "Press Start 2P", monospace';
   ctx.textAlign = align || 'left';
   ctx.textBaseline = 'top';
-  ctx.fillStyle = '#1B1030';
-  ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = '#1B1030';                 /* контур, щоб читалось на будь-якому небі */
+  for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1],[1,1]]) ctx.fillText(s, x + dx, y + dy);
   ctx.fillStyle = color;
   ctx.fillText(s, x, y);
 }
 
-function drawSky(){
-  const band = Math.ceil(VH / SKY.length);
-  for (let i = 0; i < SKY.length; i++){
-    ctx.fillStyle = SKY[i];
-    ctx.fillRect(0, i * band, VW, band);
-    if (i < SKY.length - 1){            /* дизеринг між смугами */
-      ctx.fillStyle = SKY[i + 1];
-      for (let x = (i % 2); x < VW; x += 2) ctx.fillRect(x, i * band + band - 2, 1, 2);
+let skyCanvas = null;
+function buildSky(){
+  const c = document.createElement('canvas');
+  c.width = VW; c.height = VH;
+  const g = c.getContext('2d');
+  const n = SKY.length, band = Math.ceil(VH / n);
+  for (let i = 0; i < n; i++){ g.fillStyle = SKY[i]; g.fillRect(0, i * band, VW, band); }
+  /* три ряди дизерингу між смугами — перехід без «лінійки» */
+  for (let i = 0; i < n - 1; i++){
+    const y = (i + 1) * band;
+    g.fillStyle = SKY[i + 1];
+    for (let x = 0; x < VW; x++){
+      if ((x + i) % 4 === 0) g.fillRect(x, y - 3, 1, 1);
+      if ((x + i) % 2 === 0) g.fillRect(x, y - 2, 1, 1);
+      if ((x + i) % 4 !== 1) g.fillRect(x, y - 1, 1, 1);
     }
   }
-  /* сонце */
-  const sx = 268, sy = 26;
-  ctx.fillStyle = '#FFE58A';
-  ctx.fillRect(sx - 12, sy - 6, 24, 12); ctx.fillRect(sx - 6, sy - 12, 12, 24);
-  ctx.fillRect(sx - 10, sy - 10, 20, 20);
-  ctx.fillStyle = '#FFF7CF';
-  ctx.fillRect(sx - 8, sy - 4, 16, 8); ctx.fillRect(sx - 4, sy - 8, 8, 16);
+  /* сонце — по центру вгорі, щоб не лізло під HUD у кутах */
+  const sx = Math.round(VW * 0.5), sy = Math.round(VH * 0.13);
+  g.fillStyle = '#FFE58A';
+  g.fillRect(sx - 12, sy - 6, 24, 12); g.fillRect(sx - 6, sy - 12, 12, 24);
+  g.fillRect(sx - 10, sy - 10, 20, 20);
+  g.fillStyle = '#FFF7CF';
+  g.fillRect(sx - 8, sy - 4, 16, 8); g.fillRect(sx - 4, sy - 8, 8, 16);
+  skyCanvas = c;
+}
+function drawSky(){
+  if (!skyCanvas || skyCanvas.width !== VW || skyCanvas.height !== VH) buildSky();
+  ctx.drawImage(skyCanvas, 0, 0);
 }
 
-function drawHills(par, base, amp, wave, col, col2){
-  const off = camX * par, ybase = base + (WORLD_H - VH - camY) * par * 0.35;
+/* пагорби стоять рівно на лінії землі: над нею — смуга пагорбів,
+   під нею їх немає, тож у прірві видно небо, а не зелену стіну */
+function drawHills(par, offset, amp, wave, col, col2){
+  const off = camX * par, gline = 13 * TILE - camY;
+  if (gline <= 0) return;
+  const ybase = gline - offset;
   for (let x = 0; x < VW; x++){
     const wx = x + off;
     const h = Math.round((Math.sin(wx / wave) * 0.6 + Math.sin(wx / (wave * 0.37)) * 0.4) * amp / 2) * 2;
     const top = Math.round(ybase - h);
+    if (top >= gline) continue;
     ctx.fillStyle = col2; ctx.fillRect(x, top, 1, 3);
-    ctx.fillStyle = col;  ctx.fillRect(x, top + 3, 1, VH - top);
+    ctx.fillStyle = col;  ctx.fillRect(x, top + 3, 1, gline - top - 3);
   }
 }
 
 function drawClouds(){
-  const par = 0.3;
-  for (let i = 0; i < 9; i++){
-    const wx = i * 380 + 60, wy = 18 + ((i * 37) % 46);
-    let x = Math.round(wx - camX * par) % (VW + 120);
-    if (x < -120) x += VW + 120;
+  const par = 0.3, span = VW + 120;
+  for (let i = 0; i < 12; i++){
+    const wx = i * 380 + 60, wy = 14 + ((i * 37) % 46) - camY * 0.18;
+    let x = Math.round(wx - camX * par) % span;
+    if (x < -120) x += span;
     const w = 20 + (i % 3) * 10;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(x, wy, w, 7); ctx.fillRect(x + 5, wy - 5, w - 12, 6);
@@ -701,13 +714,13 @@ function drawTree(sx, gy, kind){
   }
 }
 function drawDecor(){
-  const par = 0.72;
-  for (let i = 0; i < 26; i++){
-    const wx = i * 137 + 40;
-    const sx = Math.round(wx - camX * par);
+  const par = 0.72, span = 137;
+  const gy = Math.round(13 * TILE - camY) + 2;
+  const first = Math.floor(camX * par / span) - 1;
+  for (let i = first; i < first + Math.ceil(VW / span) + 3; i++){
+    const sx = Math.round(i * span + 40 - camX * par);
     if (sx < -40 || sx > VW + 10) continue;
-    const gy = Math.round(13 * TILE - camY * par - 6);
-    drawTree(sx, gy, i % 3 === 0 ? 1 : 0);
+    drawTree(sx, gy, ((i % 3) + 3) % 3 === 0 ? 1 : 0);
   }
 }
 
@@ -748,6 +761,16 @@ function drawTile(t, sx, sy, tx, ty){
   }
 }
 
+/* глибина під світом, коли екран вищий за рівень */
+function drawUnderground(oy){
+  const top = WORLD_H - oy;
+  if (top >= VH) return;
+  ctx.fillStyle = '#7A4E24'; ctx.fillRect(0, top, VW, VH - top);
+  ctx.fillStyle = '#633D1B';
+  for (let y = top; y < VH; y += 6)
+    for (let x = (y % 12); x < VW; x += 13) ctx.fillRect(x, y, 3, 2);
+}
+
 function drawFlag(ox, oy){
   const x = FLAG_X - ox, base = FLAG_BASE - oy;
   if (x < -40 || x > VW + 40) return;
@@ -758,20 +781,18 @@ function drawFlag(ox, oy){
   const rise = state === 'win' ? Math.min(18, flagRaise * 0.5) : 0;
   const top = base - 54 - rise;
   for (let r = 0; r < 12; r++){
-    const wob = Math.round(Math.sin((tick * 0.14) + r * 0.5) * 1.6);
     const w = 16 - Math.abs(r - 6);
     ctx.fillStyle = (r >> 1) % 2 ? '#2AB7E6' : '#FFF3DA';
     ctx.fillRect(x + 8, top + r, w, 1);
-    ctx.fillStyle = 'rgba(42,27,61,.18)';
-    ctx.fillRect(x + 8 + w + wob - 1, top + r, 1, 1);
   }
 }
 
 function drawPlayer(ox, oy){
   if (player.iframes > 0 && Math.floor(player.iframes / 4) % 2) return;
-  let pose = 'stand';
-  if (!player.grounded) pose = 'jump';
-  else if (Math.abs(player.vx) > 0.2) pose = (Math.floor(player.anim) % 2) ? 'run1' : 'run2';
+  let pose;
+  if (!player.grounded) pose = player.vy < 0 ? 'jump' : 'stand';
+  else if (Math.abs(player.vx) > 0.2) pose = RUN_CYCLE[Math.floor(player.anim) % RUN_CYCLE.length];
+  else pose = 'stand';
   const img = FROG[pose + (player.dir > 0 ? 'R' : 'L')];
   let sw = 16, sh = 20;
   if (player.squash > 0){ sw = 18; sh = 18; }
@@ -781,12 +802,34 @@ function drawPlayer(ox, oy){
   ctx.drawImage(img, dx, dy, sw, sh);
 }
 
+function ring(cx, cy, r, color){
+  ctx.fillStyle = color;
+  for (let a = 0; a < 16; a++){
+    const t = a / 16 * Math.PI * 2;
+    ctx.fillRect(Math.round(cx + Math.cos(t) * r), Math.round(cy + Math.sin(t) * r), 1, 1);
+  }
+}
+/* пальці на екрані: кільце в точці дотику й крапка там, де палець зараз */
+function drawTouchGuides(){
+  if (!touch.size) return;
+  const r = cvs.getBoundingClientRect();
+  for (const t of touch.values()){
+    if (t.role !== 'move') continue;
+    const ox = (t.ox - r.left) / SCALE, oy = (t.oy - r.top) / SCALE;
+    const px = (t.x - r.left) / SCALE, py = (t.y - r.top) / SCALE;
+    ring(ox, oy, 11, 'rgba(255,243,218,.5)');
+    ctx.fillStyle = 'rgba(255,201,60,.85)';
+    ctx.fillRect(Math.round(px) - 2, Math.round(py) - 2, 4, 4);
+  }
+}
+
+/* HUD тримається лівого кута: правий верх віддано кнопкам звуку й екрана */
 function drawHUD(){
   for (let i = 0; i < 3; i++)
-    ctx.drawImage(i < lives ? HEART : HEART_OFF, 5 + i * 11, 5);
-  ctx.drawImage(COIN[0], 244, 4);
-  drawText(got + '/' + TOTAL_COINS, 255, 5, '#FFF3DA');
-  drawText(String(score).padStart(5, '0'), 315, 16, '#FFC93C', 'right');
+    ctx.drawImage(i < lives ? HEART : HEART_OFF, 5 + i * 11, 4);
+  ctx.drawImage(COIN[0], 42, 4);
+  drawText(got + '/' + TOTAL_COINS, 54, 5, '#FFF3DA');
+  drawText(String(score).padStart(5, '0'), 5, 17, '#FFC93C');
 }
 
 function render(){
@@ -796,12 +839,17 @@ function render(){
 
   drawSky();
   drawClouds();
-  drawHills(0.16, 124, 26, 90, '#8FD9AE', '#B4EBC8');
-  drawHills(0.32, 138, 20, 58, '#63C089', '#8AD9A6');
+  const gline = Math.max(0, Math.min(VH, 13 * TILE - oy));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, VW, gline); ctx.clip();
+  drawHills(0.16, 6, 26, 90, '#8FD9AE', '#B4EBC8');
+  drawHills(0.32, 2, 20, 58, '#63C089', '#8AD9A6');
   drawDecor();
+  ctx.restore();
+  drawUnderground(oy);
 
-  const tx0 = Math.max(0, Math.floor(ox / TILE)), tx1 = Math.min(COLS - 1, tx0 + 21);
-  const ty0 = Math.max(0, Math.floor(oy / TILE)), ty1 = Math.min(ROWS - 1, ty0 + 13);
+  const tx0 = Math.max(0, Math.floor(ox / TILE)), tx1 = Math.min(COLS - 1, tx0 + Math.ceil(VW / TILE) + 1);
+  const ty0 = Math.max(0, Math.floor(oy / TILE)), ty1 = Math.min(ROWS - 1, ty0 + Math.ceil(VH / TILE) + 1);
   for (let ty = ty0; ty <= ty1; ty++)
     for (let tx = tx0; tx <= tx1; tx++){
       const t = at(tx, ty);
@@ -819,7 +867,7 @@ function render(){
   }
 
   for (const e of enemies){
-    const x = Math.round(e.x - ox - (e.kind === 'bug' ? 1 : 1));
+    const x = Math.round(e.x - ox - 1);
     if (x < -20 || x > VW + 20) continue;
     const y = Math.round(e.y - oy - 1);
     if (e.dead){
@@ -834,86 +882,175 @@ function render(){
   drawPlayer(ox, oy);
 
   for (const s of sparks){
-    ctx.fillStyle = s.c;
     ctx.globalAlpha = Math.min(1, s.life / 12);
-    ctx.fillRect(Math.round(s.x - ox), Math.round(s.y - oy), 2, 2);
+    if (s.ring) ring(s.x - ox, s.y - oy, 18 - s.life, s.c);
+    else { ctx.fillStyle = s.c; ctx.fillRect(Math.round(s.x - ox), Math.round(s.y - oy), 2, 2); }
   }
   ctx.globalAlpha = 1;
 
+  drawTouchGuides();
   drawHUD();
 }
 </script>
 
 <script>
 "use strict";
-/* ---------- екрани, пауза, головний цикл ---------- */
+/* ---------- екрани, повний екран, головний цикл ---------- */
 const overlay = document.getElementById('overlay');
+const chips = document.getElementById('chips');
+const hint = document.getElementById('hint');
+const COARSE = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+
+const LEGEND = COARSE ? `
+  <div class="legend">
+    <div class="row"><span class="what">Бігти</span>
+      <span class="how">ЛІВА ПОЛОВИНА —<br>ВЕСТИ ПАЛЬЦЕМ</span></div>
+    <div class="row"><span class="what">Стрибати</span>
+      <span class="how">ПРАВА ПОЛОВИНА —<br>ТОРКНУТИСЬ, ТРИМАТИ = ВИЩЕ</span></div>
+    <div class="row"><span class="what">Однією рукою</span>
+      <span class="how">СВАЙП УГОРУ =<br>СТРИБОК</span></div>
+  </div>` : `
+  <div class="legend">
+    <div class="row"><span class="what">Бігти</span>
+      <span class="how"><kbd>A</kbd> <kbd>D</kbd> АБО СТРІЛКИ</span></div>
+    <div class="row"><span class="what">Стрибати</span>
+      <span class="how"><kbd>SPACE</kbd> ТРИМАТИ = ВИЩЕ</span></div>
+    <div class="row"><span class="what">Пауза · екран</span>
+      <span class="how"><kbd>P</kbd> <kbd>F</kbd></span></div>
+  </div>`;
 
 const SHEETS = {
   title: () => `<div class="sheet">
-      <h2>Жабік готовий стрибати</h2>
-      <p>Збирай золоті монети, оминай шипи й прірви, стрибай жукам і осам на голови —
-         і дійди до прапорця в кінці берега.</p>
-      <p class="tally">${TOTAL_COINS} МОНЕТ · 3 СЕРЦЯ</p>
-      <button type="button" id="go">ПОЧАТИ ГРУ</button>
+      <img class="mascot" id="mascot" alt="">
+      <p class="eyebrow">СТАВОКРАЙ · РІВЕНЬ 1</p>
+      <h1>Жабік-<em>Стрибун</em></h1>
+      <p>Збирай золоті монети, оминай шипи й прірви, стрибай жукам і осам
+         на голови — і дійди до прапорця в кінці берега.</p>
+      ${LEGEND}
+      <p class="rotate">Поверни пристрій горизонтально — берег стане ширшим.</p>
+      <button class="go" type="button" id="go">ПОЧАТИ ГРУ</button>
+      <footer>${TOTAL_COINS} монет · 3 серця</footer>
     </div>`,
   pause: () => `<div class="sheet">
       <h2>Пауза</h2>
-      <p>Жабік перевів дух. Клавіша <b>P</b> або кнопка нижче — і біжимо далі.</p>
-      <button type="button" id="go">ПРОДОВЖИТИ</button>
+      <p>Жабік перевів дух.</p>
+      ${LEGEND}
+      <button class="go" type="button" id="go">ПРОДОВЖИТИ</button>
     </div>`,
   over: () => `<div class="sheet">
       <h2>Серця скінчились</h2>
-      <p>Жабік присів відпочити. Рівень починається спочатку — цього разу обережніше
-         з осами над прірвою.</p>
-      <p class="tally">МОНЕТ ${got}/${TOTAL_COINS} · ОЧОК ${score}</p>
-      <button type="button" id="go">СПРОБУВАТИ ЗНОВУ</button>
+      <p>Жабік присів відпочити. Рівень починається спочатку — цього разу
+         обережніше з осами над прірвою.</p>
+      <p class="tally">МОНЕТ ${got}/${TOTAL_COINS}<br>ОЧОК ${score}</p>
+      <button class="go" type="button" id="go">СПРОБУВАТИ ЗНОВУ</button>
     </div>`,
   win: () => `<div class="sheet">
       <h2>Прапорець твій!</h2>
       <p>${got === TOTAL_COINS ? 'Усі монети до однієї — берег вичищено начисто.'
-        : 'Десь на березі лишились монети: спробуй забрати всі.'}
-        За кожне вціліле серце — по 200 очок.</p>
-      <p class="tally">МОНЕТ ${got}/${TOTAL_COINS} · СЕРДЕЦЬ ${lives} · ОЧОК ${score}</p>
-      <button type="button" id="go">ЗІГРАТИ ЩЕ</button>
+        : 'Десь на березі лишились монети: спробуй забрати всі.'}</p>
+      <p class="tally">МОНЕТ ${got}/${TOTAL_COINS}<br>СЕРДЕЦЬ ${lives}<br>ОЧОК ${score}</p>
+      <button class="go" type="button" id="go">ЗІГРАТИ ЩЕ</button>
     </div>`
 };
 
 function setState(s){
   state = s;
-  if (s === 'play'){ overlay.hidden = true; return; }
+  if (s === 'play'){
+    overlay.hidden = true;
+    if (COARSE){ hint.classList.add('on'); setTimeout(() => hint.classList.remove('on'), 3800); }
+    return;
+  }
+  hint.classList.remove('on');
+  chips.classList.remove('idle');
   overlay.hidden = false;
   overlay.innerHTML = SHEETS[s]();
+  const m = document.getElementById('mascot');
+  if (m) m.src = FROG.standR.toDataURL();
   const b = document.getElementById('go');
   b.addEventListener('click', primary);
   b.focus({ preventScroll: true });
 }
 function primary(){
   audio();
-  if (state === 'title' || state === 'over' || state === 'win'){
-    resetLevel(true); setState('play');
-  } else if (state === 'pause'){
-    setState('play');
-  }
+  if (COARSE) tryFull();
+  if (state === 'pause') setState('play');
+  else { resetLevel(true); setState('play'); }
 }
 function togglePause(){
   if (state === 'play') setState('pause');
   else if (state === 'pause') setState('play');
 }
+overlay.addEventListener('pointerdown', e => { if (e.target === overlay) primary(); });
 
-/* ---------- масштаб полотна цілим кроком ---------- */
-function fit(){
-  const box = cvs.parentElement;
-  const cs = getComputedStyle(box);
-  const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 8;
-  let s = Math.max(1, Math.floor(avail / VW));
-  const maxH = Math.max(220, window.innerHeight * 0.66);
-  while (s > 1 && VH * s > maxH) s--;
-  if (VW * s > avail) s = Math.max(1, s - 1);
-  cvs.style.width = (VW * s) + 'px';
-  cvs.style.height = (VH * s) + 'px';
+/* ---------- повний екран ---------- */
+function tryFull(){
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;
+  try {
+    const p = req.call(el, { navigationUI: 'hide' });
+    if (p && p.then) p.then(lockLandscape, () => {});
+    else lockLandscape();
+  } catch (err) { /* iOS Safari на телефоні повного екрана не дає */ }
 }
-addEventListener('resize', fit);
+function lockLandscape(){
+  try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); }
+  catch (err) {}
+}
+function toggleFull(){
+  if (document.fullscreenElement || document.webkitFullscreenElement){
+    (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+  } else tryFull();
+}
+document.getElementById('full').addEventListener('click', e => { e.preventDefault(); toggleFull(); });
+const muteBtn = document.getElementById('mute');
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? 'ТИША' : 'ЗВУК';
+});
+
+/* ---------- розмір: полотно на весь екран цілим кроком ---------- */
+function fit(){
+  const W = Math.max(240, innerWidth), H = Math.max(180, innerHeight);
+  let s = Math.max(1, Math.min(8, Math.round(Math.min(W, H) / 200)));
+  const clampW = v => Math.max(168, Math.min(640, v));
+  const clampH = v => Math.max(152, Math.min(336, v));
+  let vw = clampW(Math.ceil(W / s)), vh = clampH(Math.ceil(H / s));
+  while (s > 1 && (vw * s > W + s || vh * s > H + s)){   /* не вилазимо за екран */
+    s--; vw = clampW(Math.ceil(W / s)); vh = clampH(Math.ceil(H / s));
+  }
+  VW = vw; VH = vh; SCALE = s;
+  cvs.width = vw; cvs.height = vh;
+  cvs.style.width = (vw * s) + 'px';
+  cvs.style.height = (vh * s) + 'px';
+  ctx.imageSmoothingEnabled = false;
+  buildSky();
+  document.body.classList.toggle('portrait', H > W * 1.15);
+  if (camX !== undefined){
+    camX = Math.max(0, Math.min(camX, WORLD_W - VW));
+    camY = camClampY(camY);
+  }
+}
+let fitPending = false;
+function scheduleFit(){
+  if (fitPending) return;
+  fitPending = true;
+  requestAnimationFrame(() => { fitPending = false; fit(); });
+}
+addEventListener('resize', scheduleFit);
+addEventListener('orientationchange', scheduleFit);
+if (window.visualViewport) visualViewport.addEventListener('resize', scheduleFit);
+document.addEventListener('fullscreenchange', scheduleFit);
+
+/* чіпи ховаються, коли не заважати */
+let idleAt = 0;
+function wake(){
+  chips.classList.remove('idle');
+  idleAt = performance.now() + 3500;
+}
+addEventListener('pointermove', wake);
+addEventListener('keydown', wake);
 
 /* ---------- цикл із фіксованим кроком ---------- */
 let last = 0, acc = 0;
@@ -928,12 +1065,23 @@ function frame(now){
     if (state === 'play') update();
     else { tick++; if (state === 'win'){ flagRaise++; updateSparks(); } }
   }
+  if (state === 'play' && idleAt && now > idleAt){ chips.classList.add('idle'); idleAt = 0; }
   render();
 }
 
+/* мобільний вигляд: без масштабування сторінки, з урахуванням «чубчика» */
+(function viewport(){
+  let m = document.querySelector('meta[name="viewport"]');
+  if (!m){ m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+  m.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  const th = document.createElement('meta');
+  th.name = 'theme-color'; th.content = '#150E27';
+  document.head.appendChild(th);
+})();
+
+fit();
 resetLevel(true);
 setState('title');
-fit();
 if (document.fonts && document.fonts.load) document.fonts.load('8px "Press Start 2P"');
 requestAnimationFrame(frame);
 </script>
