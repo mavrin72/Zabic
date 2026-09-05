@@ -18,7 +18,7 @@ body{
 }
 /* сцена обрізає полотно, яке зсувається на дробову частину каменя —
    так світ їде плавно, а не стрибає цілими пікселями */
-#stage{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);overflow:hidden}
+#stage{position:fixed;left:0;top:0;overflow:hidden;will-change:transform}
 #screen{position:absolute;left:0;top:0;image-rendering:pixelated;display:block}
 #stage::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
   background:radial-gradient(120% 100% at 50% 45%, rgba(21,14,39,0) 52%, rgba(21,14,39,.34) 100%)}
@@ -510,6 +510,20 @@ function moveY(o, dy){
 }
 const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
+/* Перевірка зіткнення дивиться на рядок під `y + h - 1`, тож герой може
+   зависнути на частку пікселя над землею — і `grounded` блимає щокадру,
+   а з ним стрибає поза. Тому після руху ще раз притискаємо до опори. */
+function groundSnap(o){
+  if (o.vy < 0) return false;
+  const row = Math.floor((o.y + o.h + 1) / TILE);
+  const gap = row * TILE - (o.y + o.h);
+  if (gap > 1.6 || gap < -4) return false;      /* трохи над опорою або трохи в ній */
+  const x0 = Math.floor(o.x / TILE), x1 = Math.floor((o.x + o.w - 1) / TILE);
+  for (let tx = x0; tx <= x1; tx++)
+    if (solid(tx, row)){ o.y = row * TILE - o.h; o.vy = 0; return true; }
+  return false;
+}
+
 function puff(x, y, n, color, spd){
   for (let i = 0; i < n; i++){
     const a = Math.random() * Math.PI * 2;
@@ -583,9 +597,11 @@ function updatePlayer(){
   player.vy = Math.min(player.vy + g, MAXFALL);
 
   moveX(player, player.vx);
+  const fallSpeed = player.vy;
   const hit = moveY(player, player.vy);
-  if (hit === 1){
-    if (!player.grounded){
+  const onGround = hit === 1 || groundSnap(player);
+  if (onGround){
+    if (!player.grounded && fallSpeed > 1.6){        /* саме приземлення, не крок по землі */
       player.stretch = -0.22;
       dust(player.x + 5, player.y + player.h, 3, '#C9A26B');
       SFX.land();
@@ -614,7 +630,7 @@ function updatePlayer(){
   }
 
   if (player.iframes > 0) player.iframes--;
-  if (player.grounded && Math.abs(player.vx) > 0.2) player.anim += Math.abs(player.vx) * 0.135;
+  if (player.grounded && Math.abs(player.vx) > 0.2) player.anim += Math.abs(player.vx) * 0.112;
   else if (player.grounded) player.anim = 0;
 }
 
@@ -702,6 +718,7 @@ function update(){
   const look = Math.max(-30, Math.min(30, player.vx * 14));
   const tx = Math.max(0, Math.min(player.x + player.w / 2 - VW / 2 + look, WORLD_W - VW));
   camX += (tx - camX) * 0.12;
+  if (Math.abs(tx - camX) < 0.06) camX = tx;          /* стоїмо — камера стоїть */
 
   /* по вертикалі — мертва зона, щоб камера не гойдалась на кожному стрибку */
   const eyeY = player.y + player.h / 2;
@@ -709,7 +726,9 @@ function update(){
   let ty = camY;
   if (eyeY < top) ty = camY + (eyeY - top);
   else if (eyeY > bot) ty = camY + (eyeY - bot);
-  camY += (camClampY(ty) - camY) * (player.grounded ? 0.09 : 0.055);
+  const cty = camClampY(ty);
+  camY += (cty - camY) * (player.grounded ? 0.09 : 0.055);
+  if (Math.abs(cty - camY) < 0.06) camY = cty;
 }
 </script>
 
@@ -955,7 +974,7 @@ function drawShadow(wx, wy, w, ox, oy){
 <script>
 "use strict";
 /* ---------- кадр ---------- */
-let viewX = 0, viewY = 0;
+let viewX = 0, viewY = 0, lastShiftX = null, lastShiftY = null;
 
 function drawText(s, x, y, color, align){
   ctx.font = '8px "Press Start 2P", monospace';
@@ -1028,9 +1047,14 @@ function render(a){
   const fx = lerp(camPX, camX, a) + shx, fy = lerp(camPY, camY, a) + shy;
   const ox = Math.floor(fx), oy = Math.floor(fy);
   viewX = fx; viewY = fy;
-  /* дробову частину камери відпрацьовує сам зсув полотна — рух без сходинок */
-  cvs.style.transform = 'translate(' + (-(fx - ox) * SCALE).toFixed(2) + 'px,' +
-                                       (-(fy - oy) * SCALE).toFixed(2) + 'px)';
+  /* Полотно зсувається на цілі екранні пікселі: крок у SCALE разів дрібніший
+     за художній піксель, а шар не перемальовується з інтерполяцією — тому
+     немає ні сходинок, ні дрібного тремтіння. */
+  const shiftX = -Math.round((fx - ox) * SCALE), shiftY = -Math.round((fy - oy) * SCALE);
+  if (shiftX !== lastShiftX || shiftY !== lastShiftY){
+    cvs.style.transform = 'translate3d(' + shiftX + 'px,' + shiftY + 'px,0)';
+    lastShiftX = shiftX; lastShiftY = shiftY;
+  }
 
   const gline = Math.max(0, Math.min(DH, GROUND_Y - oy));
   ctx.drawImage(skyCanvas, 0, 0);
@@ -1303,6 +1327,9 @@ function fit(){
   cvs.style.height = (DH * s) + 'px';
   stage.style.width = (vw * s) + 'px';
   stage.style.height = (vh * s) + 'px';
+  stage.style.left = Math.floor((W - vw * s) / 2) + 'px';
+  stage.style.top = Math.floor((H - vh * s) / 2) + 'px';
+  lastShiftX = lastShiftY = null;
   ctx.imageSmoothingEnabled = false;
   buildSky();
   document.body.classList.toggle('portrait', H > W * 1.15);
