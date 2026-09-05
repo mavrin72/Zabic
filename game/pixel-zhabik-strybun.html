@@ -750,7 +750,7 @@ function update(){
 <script>
 "use strict";
 /* ---------- фон і рівень малюються один раз у власні полотна ---------- */
-const SKY = ['#3FB8F0','#52C2F3','#66CCF6','#7BD5F8','#92DEFA','#A9E6FB','#C2EFFC','#DAF6FD'];
+const SKY = ['#37B0EE','#4ABBF2','#5FC6F5','#76D0F7','#8FDAF9','#ABE5FA','#C8EFF7','#E2F7F0'];
 /* завжди додатний, щоб знакові зсуви нижче не давали від'ємних індексів */
 const hash = (x, y) => { let h = (x * 73856093) ^ (y * 19349663); h = (h ^ (h >>> 13)) >>> 0; return h & 0x7fffffff; };
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -880,7 +880,45 @@ function blitWorld(img, ox, oy){
 }
 
 /* ---------- шари фону ---------- */
-function drawRidge(par, lift, amp, wave, colTop, col, gline){
+/* Далекі гори: гострі шпилі (abs(sin) дає злами, а не хвилі) і освітлення
+   лівих схилів — тому вони читаються як гори, а не як ще один пагорб. */
+function drawPeaks(par, lift, amp, wave, colTop, colLit, colShade, gline){
+  if (gline <= 0) return;
+  const off = viewX * par, ybase = gline - lift;
+  const H = wx => Math.round((Math.abs(Math.sin(wx / wave)) * 0.68 +
+                              Math.abs(Math.sin(wx / (wave * 0.43) + 1.7)) * 0.32) * amp / 2) * 2;
+  for (let x = 0; x < DW; x++){
+    const wx = x + off, h = H(wx);
+    const top = Math.round(ybase - h);
+    if (top >= gline) continue;
+    /* нахил міряємо на ширшому вікні, інакше схил розпадається на смужки */
+    const lit = H(wx + 4) > H(wx - 4);
+    ctx.fillStyle = colTop;
+    ctx.fillRect(x, top, 1, 2);
+    ctx.fillStyle = lit ? colLit : colShade;
+    ctx.fillRect(x, top + 2, 1, gline - top - 2);
+  }
+}
+
+/* Ставок на обрії — Ставокрай усе-таки. Пагорби нижче перекривають його низ. */
+function drawWater(gline){
+  const top = Math.round(gline) - 34;
+  if (top >= gline) return;
+  ctx.fillStyle = '#93C9E0'; ctx.fillRect(0, top, DW, gline - top);
+  ctx.fillStyle = '#BCDFF0'; ctx.fillRect(0, top, DW, 2);
+  ctx.fillStyle = '#6EB4DA'; ctx.fillRect(0, top + 2, DW, 1);
+  const off = viewX * 0.1;
+  ctx.fillStyle = 'rgba(255,255,255,.42)';
+  for (let i = 0; i < 44; i++){
+    const h = hash(i, 3), span = DW + 40;
+    let x = (i * 41 + Math.sin(tick * 0.008 + i) * 3 - off) % span;
+    if (x < 0) x += span;
+    ctx.fillRect(Math.round(x) - 20, top + 4 + (h % 14), 3 + (h >> 5) % 4, 1);
+  }
+}
+
+/* Пагорби: гребінь світліший, низ темніший — форма, а не пляма. */
+function drawRidge(par, lift, amp, wave, colTop, col, colDeep, gline){
   if (gline <= 0) return;
   const off = viewX * par, ybase = gline - lift;
   for (let x = 0; x < DW; x++){
@@ -888,10 +926,12 @@ function drawRidge(par, lift, amp, wave, colTop, col, gline){
     const h = Math.round((Math.sin(wx / wave) * 0.6 + Math.sin(wx / (wave * 0.37)) * 0.4) * amp / 2) * 2;
     const top = Math.round(ybase - h);
     if (top >= gline) continue;
-    ctx.fillStyle = colTop; ctx.fillRect(x, top, 1, 3);
-    ctx.fillStyle = col;    ctx.fillRect(x, top + 3, 1, gline - top - 3);
+    ctx.fillStyle = colTop;  ctx.fillRect(x, top, 1, 3);
+    ctx.fillStyle = col;     ctx.fillRect(x, top + 3, 1, Math.min(10, gline - top - 3));
+    if (gline - top > 13){ ctx.fillStyle = colDeep; ctx.fillRect(x, top + 13, 1, gline - top - 13); }
   }
 }
+
 function drawHaze(gline){
   const bands = [[26, 'rgba(255,255,255,.10)'], [16, 'rgba(255,255,255,.10)'], [7, 'rgba(255,255,255,.12)']];
   for (const [h, c] of bands){
@@ -899,41 +939,105 @@ function drawHaze(gline){
     ctx.fillStyle = c; ctx.fillRect(0, gline - h, DW, h);
   }
 }
+
+function cloud(x, y, big){
+  const w = big ? 34 : 22, h = big ? 12 : 9;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(x, y + h - 4, w, 4);
+  ctx.fillRect(x + 3, y + h - 7, w - 6, 3);
+  ctx.fillRect(x + (big ? 7 : 4), y + h - 10, big ? 14 : 9, 3);
+  ctx.fillRect(x + (big ? 20 : 12), y + h - 8, big ? 9 : 6, 2);
+  if (big) ctx.fillRect(x + 10, y, 8, 3);
+  ctx.fillStyle = '#DCEFFB';
+  ctx.fillRect(x, y + h - 1, w, 1);
+  ctx.fillRect(x + 2, y + h - 2, w - 4, 1);
+}
 function drawClouds(){
-  const par = 0.28, span = DW + 140;
-  for (let i = 0; i < 14; i++){
-    const wy = 12 + ((i * 37) % 52) - viewY * 0.15;
-    let x = Math.round(i * 340 + 60 - viewX * par) % span;
-    if (x < -140) x += span;
-    const w = 20 + (i % 3) * 11;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(x, wy, w, 7); ctx.fillRect(x + 5, wy - 5, w - 12, 6);
-    ctx.fillRect(x + 12, wy - 8, 10, 6);
-    ctx.fillStyle = '#E4F4FE'; ctx.fillRect(x, wy + 5, w, 2);
-    ctx.fillStyle = '#CFE9F9'; ctx.fillRect(x + 2, wy + 7, w - 4, 1);
+  const par = 0.26, span = DW + 180;
+  for (let i = 0; i < 12; i++){
+    const h = hash(i, 5);
+    let x = (i * 290 + 40 - viewX * par) % span;
+    if (x < 0) x += span;
+    const y = Math.round(8 + (h % 44) - viewY * 0.14);
+    cloud(Math.round(x) - 40, y, (h >> 6) % 2 === 0);
   }
 }
+
+/* Три птахи над ставком — єдине, що рухається саме по собі. */
+function drawBirds(){
+  ctx.fillStyle = '#48688A';
+  for (let i = 0; i < 3; i++){
+    const span = DW + 80;
+    let x = (i * 167 + tick * 0.22 - viewX * 0.22) % span;
+    if (x < 0) x += span;
+    x = Math.round(x) - 40;
+    const y = Math.round(20 + i * 14 + Math.sin(tick * 0.016 + i * 2) * 4 - viewY * 0.2);
+    if (Math.floor(tick / 11 + i) % 2){
+      ctx.fillRect(x - 2, y, 2, 1); ctx.fillRect(x + 1, y, 2, 1); ctx.fillRect(x, y + 1, 1, 1);
+    } else {
+      ctx.fillRect(x - 2, y + 1, 2, 1); ctx.fillRect(x + 1, y + 1, 2, 1); ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+/* Очерет купками вздовж берега — не поодинокі палички, а зарості. */
+function drawReeds(gline){
+  const par = 0.5, span = 62, base = Math.round(gline) - 2;
+  const first = Math.floor(viewX * par / span) - 1;
+  for (let c = first; c < first + Math.ceil(DW / span) + 3; c++){
+    const hc = hash(c, 21);
+    const cx = Math.round(c * span + (hc % 40) - viewX * par);
+    if (cx < -20 || cx > DW + 20) continue;
+    const n = 4 + (hc >> 5) % 3;
+    for (let k = 0; k < n; k++){
+      const h0 = hash(c * 7 + k, 11);
+      const x = cx + k * 3 + (h0 % 3) - n;
+      const h = 6 + (h0 >> 4) % 7;
+      const sway = Math.round(Math.sin(tick * 0.011 + c + k * 0.7) * 1.2);
+      ctx.fillStyle = '#2E7C4A';
+      ctx.fillRect(x, base - h, 1, h);
+      ctx.fillRect(x + sway, base - h - 2, 1, 3);
+      ctx.fillStyle = '#24633B';
+      ctx.fillRect(x - 1, base - h + 3, 1, 4);
+      if (k === (hc >> 9) % n){                       /* один рогіз на купку */
+        ctx.fillStyle = '#7A4A22'; ctx.fillRect(x + sway, base - h - 6, 2, 4);
+        ctx.fillStyle = '#A0693A'; ctx.fillRect(x + sway, base - h - 6, 1, 4);
+      }
+    }
+  }
+}
+
 function drawTree(sx, gy, kind, tint){
-  const trunkH = kind ? 24 : 17;
+  if (kind === 0){                                   /* кущ */
+    const rows = [10,16,18,16,10];
+    for (let i = 0; i < rows.length; i++){
+      ctx.fillStyle = i < 1 ? tint[0] : (i > rows.length - 2 ? tint[2] : tint[1]);
+      ctx.fillRect(Math.round(sx + 10 - rows[i] / 2), gy - 18 + i * 4, rows[i], 4);
+    }
+    return;
+  }
+  const tall = kind === 2;
+  const trunkH = tall ? 30 : 18;
   ctx.fillStyle = '#6B4423'; ctx.fillRect(sx + 8, gy - trunkH, 5, trunkH);
   ctx.fillStyle = '#4E3018'; ctx.fillRect(sx + 8, gy - trunkH, 2, trunkH);
   ctx.fillStyle = '#82562E'; ctx.fillRect(sx + 12, gy - trunkH, 1, trunkH);
-  const cy = gy - trunkH - (kind ? 21 : 16);
-  const rows = kind ? [8,14,20,22,22,20,14,8] : [6,12,16,18,16,12,6];
+  const rows = tall ? [6,10,14,16,16,14,12,10,8,6] : [8,14,20,22,22,20,14,8];
+  const cy = gy - trunkH - rows.length * 4 + 6;
   for (let i = 0; i < rows.length; i++){
-    const w = rows[i], x = sx + 10 - w / 2;
     ctx.fillStyle = i < 2 ? tint[0] : (i > rows.length - 3 ? tint[2] : tint[1]);
-    ctx.fillRect(Math.round(x), cy + i * 4, w, 4);
+    ctx.fillRect(Math.round(sx + 10 - rows[i] / 2), cy + i * 4, rows[i], 4);
   }
 }
 function drawDecor(gline){
-  const par = 0.72, span = 137, gy = Math.round(gline) + 2;
+  const par = 0.72, span = 74, gy = Math.round(gline) + 2;
+  const tints = [['#7BE58A','#4EBE68','#2F8C4C'], ['#8FE99A','#5CC974','#37955A'],
+                 ['#6FD97F','#43B25E','#2A8046']];
   const first = Math.floor(viewX * par / span) - 1;
-  const tints = [['#7BE58A','#4EBE68','#2F8C4C'], ['#8FE99A','#5CC974','#37955A']];
   for (let i = first; i < first + Math.ceil(DW / span) + 3; i++){
-    const sx = Math.round(i * span + 40 - viewX * par);
-    if (sx < -44 || sx > DW + 10) continue;
-    drawTree(sx, gy, ((i % 3) + 3) % 3 === 0 ? 1 : 0, tints[((i % 2) + 2) % 2]);
+    const h = hash(i, 17);
+    const sx = Math.round(i * span + (h % 34) - viewX * par);
+    if (sx < -46 || sx > DW + 10) continue;
+    drawTree(sx, gy, h % 3, tints[(h >> 5) % 3]);
   }
 }
 /* пилок у повітрі */
@@ -1077,10 +1181,13 @@ function render(a){
   ctx.drawImage(skyCanvas, 0, 0);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, DW, gline); ctx.clip();
-  drawRidge(0.07, 40, 44, 190, '#CFE6F2', '#A9CFE4', gline);   /* далекі гори */
-  drawRidge(0.13, 20, 30, 104, '#BFE7CF', '#8FD0AA', gline);
+  drawPeaks(0.05, 38, 26, 78, '#CBDDF1', '#A6BEDC', '#8CA5C6', gline);   /* гори */
+  drawWater(gline);                                                     /* ставок */
+  drawRidge(0.16, 20, 24, 92, '#CFEEDB', '#9BD5B4', '#7BC199', gline);
   drawClouds();
-  drawRidge(0.3, 6, 24, 62, '#8FE0A8', '#5CBE7B', gline);      /* ближчі пагорби */
+  drawBirds();
+  drawRidge(0.34, 8, 18, 58, '#96E3AE', '#61C280', '#45A566', gline);
+  drawReeds(gline);
   drawHaze(gline);
   drawDecor(gline);
   ctx.restore();
