@@ -62,7 +62,7 @@ body{
 #overlay[hidden]{display:none}
 .sheet{width:min(30rem,100%);display:flex;flex-direction:column;align-items:center;
   gap:.8rem;text-align:center}
-.mascot{width:76px;height:95px;image-rendering:pixelated;
+.mascot{width:80px;height:104px;image-rendering:pixelated;
   filter:drop-shadow(0 7px 0 rgba(0,0,0,.35));animation:bob 2.6s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .eyebrow{font-family:var(--pixel);font-size:.5rem;letter-spacing:.14em;color:var(--sun);margin:0}
@@ -148,47 +148,62 @@ function sprite(rows, pal){
   return c;
 }
 
-/* ---------- Жабік: 16x20, анфас, з плямами й тінню на футболці ---------- */
+/* ---------- Жабік: 20x26, анфас ---------- */
 const FROG_PAL = {
-  K:'#2A1B3D', P:'#A97BD1', p:'#7E4FA8', l:'#C49BE0', W:'#FFFFFF', E:'#1A1030',
-  B:'#22A6DE', b:'#1580B0', Y:'#FFD23F', J:'#4E6FA8', j:'#3B5687'
+  K:'#2A1B3D', P:'#A97BD1', D:'#7E4FA8', l:'#C9A3E8',
+  W:'#FFFFFF', E:'#1A1030',
+  B:'#22A6DE', b:'#1580B0', Y:'#FFD23F',
+  J:'#4E6FA8', j:'#3B5687', u:'#7092C8'
 };
-function frogBody(dir){
-  const eye = dir > 0 ? 'WWE' : 'EWW';
-  const eyes = '..K' + eye + 'K.K' + eye + 'K...';
+function frogBody(dir, blink){
+  const e = dir > 0 ? 'WEEW' : 'WEEW';            /* 4 з 5 колонок ока */
+  const p = dir > 0 ? 'WWEE' : 'EEWW';
+  const eyes = blink
+    ? ['..KPPPPPKPPKPPPPPK..','..KKKKKKKPPKKKKKKK..',
+       '..KPPPPPKPPKPPPPPK..','..KPPPPPKPPKPPPPPK..']
+    : ['..KWWWWWKPPKWWWWWK..','..KW'+p+'KPPKW'+p+'K..',
+       '..KW'+p+'KPPKW'+p+'K..','..KWWWWWKPPKWWWWWK..'];
   return [
-    '...KKK...KKK....',
-    eyes,
-    eyes,
-    '..KPlPKKKPlPK...',
-    '..KPpPlPlPpPK...',
-    '..KlPPPPPPPpK...',
-    '..KPPpPPPpPPK...',
-    '..KPKKKKKKKPK...',
-    '...KPPPPPPPK....',
-    '....KPPPPPK.....',
-    '.KKBBBBBBBBbKK..',
-    '.KBBBBBYBBBBbK..',
-    '.KBBBBYYYBBBbK..',
-    '.KBBBBBYBBBBbK..',
-    '.KBBBBBBBBBBbK..',
-    '.KPKBBBBBBBKPK..'
+    '...KKKKK....KKKKK...',
+    eyes[0], eyes[1], eyes[2], eyes[3],
+    '..KPPPPPPPPPPPPPPK..',
+    '..KPlPPPPPPPPPPDPK..',
+    '..KPlPPDDPPPPDDPPK..',
+    '..KPPKPPPPPPPPKPPK..',
+    '..KPPPKKKKKKKKPPPK..',
+    '..KPPPPPPPPPPPPDPK..',
+    '...KPPPPPPPPPPPPK...',
+    '.....KPPPPPPPPK.....',
+    '...KKBBBBBBBBBBKK...',
+    '...KBBBBBBBBBBBBK...',
+    '...KBBBBBYBBBBbbK...',
+    '...KBBBYYYYYBBbbK...',
+    '...KBBBBYYYBBBbbK...',
+    '...KBBBYYBYYBBbbK...',
+    '...KBBBBBBBBBBbbK...',
+    '..KPKBBBBBBBBBBKPK..'
   ];
 }
-/* Ноги. Ступні завжди під тілом: ліва в колонках 2..7, права в 8..13.
-   Крок міняє тільки їхню висоту — лапи перебирають, а не розлітаються. */
 const LEGS = {
-  stand: ['...KJJJKKJJJK...','...KJJJKKJJJK...','...KJjJKKJjJK...','..KKPPKKKKPPKK..'],
-  stepL: ['...KJJJKKJJJK...','...KJJJKKJJJK...','..KKPPKKKJjJK...','........KKPPKK..'],
-  stepR: ['...KJJJKKJJJK...','...KJJJKKJJJK...','...KJjJKKKPPKK..','..KKPPKK........'],
-  jump:  ['...KJJJKKJJJK...','...KJJJKKJJJK...','..KKPPKKKKPPKK..','................'],
-  spin:  ['...KJJJKKJJJK...','..KJJJKKKKJJJK..','.KKPPKK..KKPPKK.','................']
+  stand: ['.....KJJJKKJJJK.....','.....KJJJKKJJJK.....','.....KJuJKKJuJK.....',
+          '..KPPPPPPKKPPPPPPK..','..KKPKPKKKKKPKPKKK..'],
+  stepL: ['.....KJJJKKJJJK.....','.....KJJJKKJJJK.....','..KPPPPPPKKJuJK.....',
+          '..KKPKPKKKKPPPPPPK..','..........KKPKPKKK..'],
+  stepR: ['.....KJJJKKJJJK.....','.....KJJJKKJJJK.....','.....KJuJKKPPPPPPK..',
+          '..KPPPPPPKKKPKPKKK..','..KKPKPKKK..........'],
+  jump:  ['.....KJJJKKJJJK.....','.....KJJJKKJJJK.....','..KPPPPPPKKPPPPPPK..',
+          '..KKPKPKKKKKPKPKKK..','....................'],
+  spin:  ['.....KJJJKKJJJK.....','....KJJJK..KJJJK....','.KPPPPPPK..KPPPPPPK.',
+          '.KKPKPKKK..KKPKPKKK.','....................']
 };
 const RUN_CYCLE = ['stepL', 'stand', 'stepR', 'stand'];
-const FROG = {};
+const FROG_W = 20, FROG_H = 26;
+const FROG = {};                                  /* поза + напрямок + моргання */
 for (const dir of [1, -1])
   for (const pose in LEGS)
-    FROG[pose + (dir > 0 ? 'R' : 'L')] = sprite(frogBody(dir).concat(LEGS[pose]), FROG_PAL);
+    for (const blink of [false, true])
+      FROG[pose + (dir > 0 ? 'R' : 'L') + (blink ? 'b' : '')] =
+        sprite(frogBody(dir, blink).concat(LEGS[pose]), FROG_PAL);
 
 /* ---------- жук ---------- */
 const BUG = sprite([
@@ -1025,18 +1040,20 @@ function drawPlayer(ox, oy, a){
   else if (Math.abs(player.vx) > 0.2) pose = RUN_CYCLE[Math.floor(player.anim) % RUN_CYCLE.length];
   else pose = 'stand';
 
-  const img = FROG[pose + (player.dir > 0 ? 'R' : 'L')];
+  /* моргає раз на три з половиною секунди — живий, але не смикається */
+  const blink = player.grounded && Math.abs(player.vx) < 0.2 && (tick % 210) < 8;
+  const img = FROG[pose + (player.dir > 0 ? 'R' : 'L') + (blink ? 'b' : '')];
   const st = player.stretch;
-  const sw = Math.max(11, Math.round(16 * (1 - st * 0.55)));
-  const sh = Math.max(14, Math.round(20 * (1 + st * 0.55)));
-  const dx = Math.round(px - 3 - ox - (sw - 16) / 2);
-  const dy = Math.round(py - 2 - oy + (20 - sh));
+  const sw = Math.max(14, Math.round(FROG_W * (1 - st * 0.55)));
+  const sh = Math.max(18, Math.round(FROG_H * (1 + st * 0.55)));
+  const dx = Math.round(px + player.w / 2 - ox - sw / 2);
+  const dy = Math.round(py + player.h - oy - sh);
   ctx.drawImage(img, dx, dy, sw, sh);
 
   if (!player.grounded && player.canDouble){          /* є ще один стрибок */
     const pulse = 0.55 + Math.sin(tick * 0.22) * 0.35;
     ctx.globalAlpha = pulse;
-    ctx.drawImage(SPARKLE, Math.round(px + 2 - ox), Math.round(py - 12 - oy + Math.sin(tick * 0.14) * 1.5));
+    ctx.drawImage(SPARKLE, Math.round(px + player.w / 2 - 2 - ox), Math.round(py + player.h - FROG_H - 7 - oy + Math.sin(tick * 0.14) * 1.5));
     ctx.globalAlpha = 1;
   }
 }
